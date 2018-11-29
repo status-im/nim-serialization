@@ -12,8 +12,11 @@ template customSerialization* {.pragma.}
   ## TODO: deprecate this in favor of readField(T, field, InputArchive)
 
 template eachSerializedFieldImpl*[T](x: T, op: untyped) =
+  when false:
+    static: echo treeRepr(T.getTypeImpl)
+
   for k, v in fieldPairs(x):
-    when not hasCustomPragma(v, dontSerialize):
+    when true: # not hasCustomPragma(v, dontSerialize):
       op(k, v)
 
 proc totalSerializedFieldsImpl(T: type): int =
