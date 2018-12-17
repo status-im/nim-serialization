@@ -1,15 +1,19 @@
-import macros
+import
+  std_shims/macros_shim
 
 template dontSerialize* {.pragma.}
   ## Specifies that a certain field should be ignored for
   ## the purposes of serialization
 
-template customSerialization* {.pragma.}
-  ## This pragma can be applied to a record field to enable the
-  ## use of custom `readValue` overloads that also take a reference
-  ## to the object holding the field.
-  ##
-  ## TODO: deprecate this in favor of readField(T, field, InputArchive)
+type
+  FieldMarkerImpl*[name: static string] = object
+
+  FieldReader*[RecordType, Reader] = tuple[
+    fieldName: string,
+    reader: proc (rec: var RecordType, reader: var Reader) {.nimcall.}
+  ]
+
+  FieldReadersTable*[RecordType, Reader] = openarray[FieldReader[RecordType, Reader]]
 
 template eachSerializedFieldImpl*[T](x: T, op: untyped) =
   when false:
@@ -49,7 +53,52 @@ macro serialziedFields*(T: typedesc, fields: varargs[untyped]): untyped =
 template serializeFields*(value: auto, fieldName, fieldValue, body: untyped) =
   # TODO: this would be nicer as a for loop macro
   mixin eachSerializedFieldImpl
-  
+
   template op(fieldName, fieldValue: untyped) = body
   eachSerializedFieldImpl(value, op)
+
+macro customSerialization*(field: untyped, definition): untyped =
+  discard
+
+proc hasDontSerialize(pragmas: NimNode): bool =
+  if pragmas == nil: return false
+  let dontSerialize = bindSym "dontSerialize"
+  for p in pragmas:
+    if p == dontSerialize:
+      return true
+
+macro makeFieldReadersTable(RecordType, Reader: distinct type): untyped =
+  var obj = RecordType.getType[1].getImpl
+
+  result = newTree(nnkBracket)
+
+  for field in recordFields(obj):
+    let fieldName = field.name
+    if not hasDontSerialize(field.pragmas):
+      var handler = quote do:
+        return proc (obj: var `RecordType`, reader: var `Reader`) {.nimcall.} =
+          reader.readValue(obj.`fieldName`)
+
+      result.add newTree(nnkTupleConstr, newLit($fieldName), handler[0])
+
+proc fieldReadersTable*(RecordType, Reader: distinct type):
+                        ptr seq[FieldReader[RecordType, Reader]] {.gcsafe.} =
+  mixin readValue
+  var tbl {.global.} = @(makeFieldReadersTable(RecordType, Reader))
+  {.gcsafe.}:
+    return addr(tbl)
+
+proc findFieldReader*(fieldsTable: FieldReadersTable,
+                      fieldName: string,
+                      expectedFieldPos: var int): auto =
+  for i in expectedFieldPos ..< fieldsTable.len:
+    if fieldsTable[i].fieldName == fieldName:
+      expectedFieldPos = i + 1
+      return fieldsTable[i].reader
+
+  for i in 0 ..< expectedFieldPos:
+    if fieldsTable[i].fieldName == fieldName:
+      return fieldsTable[i].reader
+
+  return nil
 
