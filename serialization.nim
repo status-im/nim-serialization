@@ -27,7 +27,7 @@ proc encodeImpl(writer: var auto, value: auto) =
   writer.writeValue value
 
 template encode*(Format: type, value: auto, params: varargs[untyped]): auto =
-  mixin init, WriterType, PreferedOutputType # , writeValue, getOutput
+  mixin init, WriterType, PreferedOutputType
   var s = init MemoryOutputStream[PreferedOutputType(Format)]
 
   # TODO:

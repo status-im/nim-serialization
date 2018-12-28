@@ -28,7 +28,7 @@ proc totalSerializedFieldsImpl(T: type): int =
 
   proc helper: int =
     var dummy: T
-    template countFields(x) = inc result
+    template countFields(k, v) = inc result
     eachSerializedFieldImpl(dummy, countFields)
 
   const res = helper()
