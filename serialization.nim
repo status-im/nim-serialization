@@ -45,30 +45,45 @@ proc readValue*(reader: var auto, T: type): T =
   mixin readValue
   reader.readValue(result)
 
-proc readValueFromStream(Format: distinct type,
-                         stream: ByteStream,
-                         RecordType: distinct type): RecordType =
-  mixin init, ReaderType
-  var reader = init(ReaderType(Format), stream)
-  reader.readValue(RecordType)
-
 template decode*(Format: distinct type,
                  input: openarray[byte] | string,
-                 RecordType: distinct type): auto =
+                 RecordType: distinct type,
+                 params: varargs[untyped]): auto =
+  mixin init, ReaderType
   var stream = memoryStream(input)
-  readValueFromStream(Format, stream, RecordType)
+
+  # TODO:
+  # Remove this when statement once the following bug is fixed:
+  # https://github.com/nim-lang/Nim/issues/9996
+  when astToStr(params) != "":
+    var reader = init(ReaderType(Format), stream, params)
+  else:
+    var reader = init(ReaderType(Format), stream)
+
+  reader.readValue(RecordType)
 
 template loadFile*(Format: distinct type,
                    filename: string,
-                   RecordType: distinct type): auto =
+                   RecordType: distinct type,
+                   params: varargs[untyped]): auto =
+  mixin init, ReaderType
   var stream = openFile(filename)
-  readValueFromStream(Format, stream, RecordType)
+
+  # TODO:
+  # Remove this when statement once the following bug is fixed:
+  # https://github.com/nim-lang/Nim/issues/9996
+  when astToStr(params) != "":
+    var reader = init(ReaderType(Format), stream, params)
+  else:
+    var reader = init(ReaderType(Format), stream)
+
+  reader.readValue(RecordType)
 
 template loadFile*[RecordType](Format: type,
                                filename: string,
-                               record: var RecordType) =
-  var stream = openFile(filename)
-  record = readValueFromStream(Format, stream, type(record))
+                               record: var RecordType,
+                               params: varargs[untyped]) =
+  record = loadFile(Format, filename, RecordType, params)
 
 template saveFile*(Format: type, filename: string, args: varargs[untyped]) =
   # TODO: This should use a proper output stream, instead of calling `encode`
