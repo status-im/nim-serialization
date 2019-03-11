@@ -1,8 +1,8 @@
 import
-  faststreams, serialization/object_serialization
+  faststreams, serialization/[object_serialization, errors]
 
 export
-  faststreams, object_serialization
+  faststreams, object_serialization, errors
 
 template serializationFormatImpl(Name: untyped,
                                  Reader, Writer, PreferedOutput: distinct type,
@@ -28,27 +28,48 @@ proc encodeImpl(writer: var auto, value: auto) =
 
 template encode*(Format: type, value: auto, params: varargs[untyped]): auto =
   mixin init, WriterType, PreferedOutputType
-  var s = init MemoryOutputStream[PreferedOutputType(Format)]
+  var s = init OutputStream
 
   # TODO:
   # Remove this when statement once the following bug is fixed:
   # https://github.com/nim-lang/Nim/issues/9996
   when astToStr(params) != "":
-    var writer = init(WriterType(Format), addr s, params)
+    var writer = init(WriterType(Format), s, params)
   else:
-    var writer = init(WriterType(Format), addr s)
+    var writer = init(WriterType(Format), s)
 
   encodeImpl(writer, value)
-  s.getOutput
+  s.getOutput PreferedOutputType(Format)
 
 proc readValue*(reader: var auto, T: type): T =
   mixin readValue
   reader.readValue(result)
 
 template decode*(Format: distinct type,
-                 input: openarray[byte] | string,
+                 input: string,
                  RecordType: distinct type,
                  params: varargs[untyped]): auto =
+  # TODO, this is dusplicated only due to a Nim bug:
+  # If `input` was `string|openarray[byte]`, it won't match `seq[byte]`
+  mixin init, ReaderType
+  var stream = memoryStream(input)
+
+  # TODO:
+  # Remove this when statement once the following bug is fixed:
+  # https://github.com/nim-lang/Nim/issues/9996
+  when astToStr(params) != "":
+    var reader = init(ReaderType(Format), stream, params)
+  else:
+    var reader = init(ReaderType(Format), stream)
+
+  reader.readValue(RecordType)
+
+template decode*(Format: distinct type,
+                 input: openarray[byte],
+                 RecordType: distinct type,
+                 params: varargs[untyped]): auto =
+  # TODO, this is dusplicated only due to a Nim bug:
+  # If `input` was `string|openarray[byte]`, it won't match `seq[byte]`
   mixin init, ReaderType
   var stream = memoryStream(input)
 

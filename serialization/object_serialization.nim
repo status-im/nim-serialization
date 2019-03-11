@@ -57,6 +57,13 @@ template serializeFields*(value: auto, fieldName, fieldValue, body: untyped) =
   template op(fieldName, fieldValue: untyped) = body
   eachSerializedFieldImpl(value, op)
 
+template deserializeFields*(value: auto, fieldName, fieldValue, body: untyped) =
+  # TODO: this would be nicer as a for loop macro
+  mixin eachSerializedFieldImpl
+
+  template op(fieldName, fieldValue: untyped) = body
+  eachSerializedFieldImpl(value, op)
+
 macro customSerialization*(field: untyped, definition): untyped =
   discard
 
