@@ -110,3 +110,14 @@ template saveFile*(Format: type, filename: string, args: varargs[untyped]) =
   # TODO: This should use a proper output stream, instead of calling `encode`
   writeFile(filename, Format.encode(args))
 
+template borrowSerialization*(Alias: distinct type,
+                              OriginalType: distinct type) {.dirty.} =
+
+  proc writeValue*[Writer](writer: var Writer, value: Alias) =
+    mixin writeValue
+    writeValue(writer, OriginalType value)
+
+  proc readValue*[Reader](reader: var Reader, value: var Alias) =
+    mixin readValue
+    value = Alias reader.readValue(OriginalType)
+
