@@ -80,13 +80,20 @@ macro makeFieldReadersTable(RecordType, Reader: distinct type): untyped =
   result = newTree(nnkBracket)
 
   for field in recordFields(obj):
-    let fieldName = field.name
+    let
+      fieldIdent = field.name
+      fieldName = newLit($fieldIdent)
     if not hasDontSerialize(field.pragmas):
       var handler = quote do:
         return proc (obj: var `RecordType`, reader: var `Reader`) {.nimcall.} =
-          reader.readValue(obj.`fieldName`)
+          try:
+            reader.readValue(obj.`fieldIdent`)
+          except SerializationError:
+            raise
+          except CatchableError as err:
+            reader.readValueFailed(`RecordType`, `fieldName`, obj.`fieldIdent`, err)
 
-      result.add newTree(nnkTupleConstr, newLit($fieldName), handler[0])
+      result.add newTree(nnkTupleConstr, fieldName, handler[0])
 
 proc fieldReadersTable*(RecordType, Reader: distinct type):
                         ptr seq[FieldReader[RecordType, Reader]] {.gcsafe.} =
