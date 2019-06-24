@@ -121,3 +121,8 @@ template borrowSerialization*(Alias: distinct type,
     mixin readValue
     value = Alias reader.readValue(OriginalType)
 
+template appendValue*(stream: OutputStreamVar, Format: type, value: auto) =
+  mixin WriterType, init, writeValue
+  var writer = init(WriterType(Format), stream)
+  writeValue writer, value
+
