@@ -29,11 +29,19 @@ type
 
 proc default(T: typedesc): T = discard
 
-template roundripTest*(Format: type, val: auto) =
+template roundtripTest*(Format: type, val: auto) =
   test Format.name & " " & val.type.name & " roundtrip":
     let v = val
     let serialized = Format.encode(v)
     check: Format.decode(serialized, v.type) == v
+
+template roundtripTest*(Format: type, value: auto, expectedResult: auto) =
+  test Format.name & " " & val.type.name & " roundtrip":
+    let v = value
+    let serialized = Format.encode(v)
+    check:
+      serialized = expectedResult
+      Format.decode(serialized, v.type) == v
 
 proc executeReaderWriterTests*(Format: type) =
   mixin init, ReaderType, WriterType
