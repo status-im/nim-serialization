@@ -27,21 +27,29 @@ type
     i: int
     ignored {.dontSerialize.}: int
 
+  NoExpectedResult = distinct int
+
 proc default(T: typedesc): T = discard
 
-template roundtripTest*(Format: type, val: auto) =
-  test Format.name & " " & val.type.name & " roundtrip":
-    let v = val
-    let serialized = Format.encode(v)
-    check: Format.decode(serialized, v.type) == v
-
 template roundtripTest*(Format: type, value: auto, expectedResult: auto) =
-  test Format.name & " " & val.type.name & " roundtrip":
+  test Format.name & " " & value.type.name & " roundtrip":
     let v = value
     let serialized = Format.encode(v)
-    check:
-      serialized = expectedResult
-      Format.decode(serialized, v.type) == v
+    checkpoint "(encoded value): " & $serialized
+
+    when not (expectedResult is NoExpectedResult):
+      check serialized == expectedResult
+
+    try:
+      let decoded = Format.decode(serialized, v.type)
+      checkpoint "(decoded value): " & repr(decoded)
+      check decoded == v
+    except SerializationError as err:
+      checkpoint "(serialization error): " & err.formatMsg("(encoded value)")
+      fail()
+
+template roundtripTest*(Format: type, value: auto) =
+  roundtripTest(Format, value, NoExpectedResult(0))
 
 proc executeReaderWriterTests*(Format: type) =
   mixin init, ReaderType, WriterType
