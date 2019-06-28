@@ -20,7 +20,7 @@ type
     f: Foo
 
   # Baz should use custom serialization
-  # The `i` field should be multiplied by two while deserialing and
+  # The `i` field should be multiplied by two while deserializing and
   # `ignored` field should be set to 10
   Baz = object
     f: Foo
