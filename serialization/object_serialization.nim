@@ -1,5 +1,5 @@
 import
-  std_shims/macros_shim
+  stew/shims/macros
 
 template dontSerialize* {.pragma.}
   ## Specifies that a certain field should be ignored for

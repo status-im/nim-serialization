@@ -9,4 +9,4 @@ skipDirs      = @["tests"]
 
 requires "nim >= 0.19.0",
          "faststreams",
-         "std_shims"
+         "stew"
