@@ -1,9 +1,67 @@
 import
-  stew/shims/macros
+  stew/shims/macros, stew/objects
 
 template dontSerialize* {.pragma.}
   ## Specifies that a certain field should be ignored for
   ## the purposes of serialization
+
+template enumInstanceSerializedFields*(obj: auto,
+                                       fieldNameVar, fieldVar,
+                                       body: untyped) =
+  ## Expands a block over all serialized fields of an object.
+  ##
+  ## Inside the block body, the passed `fieldNameVar` identifier
+  ## will refer to the name of each field as a string. `fieldVar`
+  ## will refer to the field value.
+  ##
+  ## The order of visited fields matches the order of the fields in
+  ## the object definition unless `serialziedFields` is used to specify
+  ## a different order. Fields marked with the `dontSerialize` pragma
+  ## are skipped.
+  ##
+  ## If the visited object is a case object, only the currently active
+  ## fields will be visited. During de-serialization, case discriminators
+  ## will be read first and the iteration will continue depending on the
+  ## value being deserialized.
+  ##
+  for fieldNameVar, fieldVar in fieldPairs(obj):
+    when not hasCustomPragma(fieldVar, dontSerialize):
+      body
+
+macro enumAllSerializedFields*(T: type,
+                               fieldNameVar, fieldTypeVar,
+                               body: untyped): untyped =
+  ## Expands a block over all fields of a type
+  ##
+  ## Inside the block body, the passed `fieldNameVar` identifier
+  ## will refer to the name of each field as a string. `fieldTypeVar`
+  ## is an identifier that will refer to the field's type.
+  ##
+  ## Please note that the main difference between
+  ## `enumInstanceSerializedFields` and `enumAllSerializedFields`
+  ## is that the later will visit all fields of case objects.
+  ##
+  ## The order of visited fields matches the order of the fields in
+  ## the object definition unless `serialziedFields` is used to specify
+  ## a different order. Fields marked with the `dontSerialize` pragma
+  ## are skipped.
+  ##
+  var T = getImpl(getType(T)[1])
+  result = newStmtList()
+
+  for field in recordFields(T):
+    if field.readPragma("dontSerialize") != nil:
+      continue
+
+    let
+      fieldName = newLit($field.name)
+      fieldType = field.typ
+
+    result.add quote do:
+      block:
+        template `fieldNameVar`: auto = `fieldName`
+        type `fieldTypeVar` = `fieldType`
+        `body`
 
 type
   FieldMarkerImpl*[name: static string] = object
@@ -15,90 +73,36 @@ type
 
   FieldReadersTable*[RecordType, Reader] = openarray[FieldReader[RecordType, Reader]]
 
-template eachSerializedFieldImpl*[T](x: T, op: untyped) =
-  when false:
-    static: echo treeRepr(T.getTypeImpl)
-
-  for k, v in fieldPairs(x):
-    when true: # not hasCustomPragma(v, dontSerialize):
-      op(k, v)
-
 proc totalSerializedFieldsImpl(T: type): int =
-  mixin eachSerializedFieldImpl
-
-  proc helper: int =
-    var dummy: T
-    template countFields(k, v) = inc result
-    eachSerializedFieldImpl(dummy, countFields)
-
-  const res = helper()
-  return res
+  mixin enumAllSerializedFields
+  enumAllSerializedFields(T, fieldName, fieldType): inc result
 
 template totalSerializedFields*(T: type): int =
   (static(totalSerializedFieldsImpl(T)))
 
-macro serialziedFields*(T: typedesc, fields: varargs[untyped]): untyped =
-  var body = newStmtList()
-  let
-    ins = genSym(nskParam, "instance")
-    op = genSym(nskParam, "op")
-
-  for field in fields:
-    body.add quote do: `op`(`ins`.`field`)
-
-  result = quote do:
-    template eachSerializedFieldImpl*(`ins`: `T`, `op`: untyped) {.inject.} =
-      `body`
-
-template serializeFields*(value: auto, fieldName, fieldValue, body: untyped) =
-  # TODO: this would be nicer as a for loop macro
-  mixin eachSerializedFieldImpl
-
-  template op(fieldName, fieldValue: untyped) = body
-  eachSerializedFieldImpl(value, op)
-
-template deserializeFields*(value: auto, fieldName, fieldValue, body: untyped) =
-  # TODO: this would be nicer as a for loop macro
-  mixin eachSerializedFieldImpl
-
-  template op(fieldName, fieldValue: untyped) = body
-  eachSerializedFieldImpl(value, op)
-
 macro customSerialization*(field: untyped, definition): untyped =
   discard
 
-proc hasDontSerialize(pragmas: NimNode): bool =
-  if pragmas == nil: return false
-  let dontSerialize = bindSym "dontSerialize"
-  for p in pragmas:
-    if p == dontSerialize:
-      return true
+proc makeFieldReadersTable(RecordType, Reader: distinct type):
+                           seq[FieldReader[RecordType, Reader]] =
+  mixin enumAllSerializedFields
 
-macro makeFieldReadersTable(RecordType, Reader: distinct type): untyped =
-  var obj = RecordType.getType[1].getImpl
+  enumAllSerializedFields(RecordType, fieldName, FieldType):
+    proc readField(obj: var RecordType, reader: var Reader) {.nimcall.} =
+      try:
+        obj.field(fieldName) = reader.readValue(FieldType)
+      except SerializationError:
+        raise
+      except CatchableError as err:
+        reader.handleReadException(`RecordType`, fieldName,
+                                   obj.field(fieldName), err)
 
-  result = newTree(nnkBracket)
-
-  for field in recordFields(obj):
-    let
-      fieldIdent = field.name
-      fieldName = newLit($fieldIdent)
-    if not hasDontSerialize(field.pragmas):
-      var handler = quote do:
-        return proc (obj: var `RecordType`, reader: var `Reader`) {.nimcall.} =
-          try:
-            reader.readValue(obj.`fieldIdent`)
-          except SerializationError:
-            raise
-          except CatchableError as err:
-            reader.readValueFailed(`RecordType`, `fieldName`, obj.`fieldIdent`, err)
-
-      result.add newTree(nnkTupleConstr, fieldName, handler[0])
+    result.add((fieldName, readField))
 
 proc fieldReadersTable*(RecordType, Reader: distinct type):
                         ptr seq[FieldReader[RecordType, Reader]] {.gcsafe.} =
   mixin readValue
-  var tbl {.global.} = @(makeFieldReadersTable(RecordType, Reader))
+  var tbl {.global.} = makeFieldReadersTable(RecordType, Reader)
   {.gcsafe.}:
     return addr(tbl)
 
@@ -115,4 +119,54 @@ proc findFieldReader*(fieldsTable: FieldReadersTable,
       return fieldsTable[i].reader
 
   return nil
+
+macro setSerializedFields*(T: typedesc, fields: varargs[untyped]): untyped =
+  var fieldsArray = newTree(nnkBracket)
+  for f in fields: fieldsArray.add newCall(bindSym"ident", newLit($f))
+
+  template payload(T: untyped, fieldsArray) {.dirty.} =
+    bind default, quote, add, getType, newStmtList, newLit, newDotExpr, `$`, `[]`
+
+    macro enumInstanceSerializedFields*(ins: T,
+                                        fieldNameVar, fieldVar,
+                                        body: untyped): untyped =
+      var
+        fields = fieldsArray
+        res = newStmtList()
+
+      for field in fields:
+        let
+          fieldName = newLit($field)
+          fieldAccessor = newDotExpr(ins, field)
+
+        res.add quote do:
+          block:
+            const `fieldNameVar` = `fieldName`
+            template `fieldVar`: auto = `fieldAccessor`
+            `body`
+
+      return res
+
+    macro enumAllSerializedFields*(typ: type T,
+                                   fieldNameVar, fieldTypeVar,
+                                   body: untyped): untyped =
+      var
+        fields = fieldsArray
+        res = newStmtList()
+        typ = getType(typ)
+
+      for field in fields:
+        let
+          fieldName = newLit($field)
+          fieldAccessor = newDotExpr(typ, field)
+
+        res.add quote do:
+          block:
+            const `fieldNameVar` = `fieldName`
+            type `fieldTypeVar` = type(default(`typ`).`field`)
+            `body`
+
+      return res
+
+  return getAst(payload(T, fieldsArray))
 
