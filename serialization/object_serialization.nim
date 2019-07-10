@@ -24,8 +24,10 @@ template enumInstanceSerializedFields*(obj: auto,
   ## will be read first and the iteration will continue depending on the
   ## value being deserialized.
   ##
+  type ObjType = type(obj)
+
   for fieldNameVar, fieldVar in fieldPairs(obj):
-    when not hasCustomPragma(fieldVar, dontSerialize):
+    when not hasCustomPragmaFixed(ObjType, fieldNameVar, dontSerialize):
       body
 
 macro enumAllSerializedFields*(T: type,
@@ -46,21 +48,24 @@ macro enumAllSerializedFields*(T: type,
   ## a different order. Fields marked with the `dontSerialize` pragma
   ## are skipped.
   ##
-  var T = getImpl(getType(T)[1])
+  var Timpl = getImpl(getType(T)[1])
   result = newStmtList()
 
-  for field in recordFields(T):
+  for field in recordFields(Timpl):
     if field.readPragma("dontSerialize") != nil:
       continue
 
     let
+      fident = field.name
       fieldName = newLit($field.name)
       fieldType = field.typ
 
     result.add quote do:
       block:
         template `fieldNameVar`: auto = `fieldName`
-        type `fieldTypeVar` = `fieldType`
+        # type `fieldTypeVar` = `fieldType` 
+        # TODO: This is a work-around for a classic Nim issue:
+        type `fieldTypeVar` = type(default(`T`).`fident`)
         `body`
 
 type
