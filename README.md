@@ -136,10 +136,6 @@ Returns the number of serialized fields in the specified format.
 
 ## Contributing
 
-The development of Confutils is sponsored by [Status.im](https://status.im/)
-through the use of [GitCoin](https://gitcoin.co/). Please take a look at our
-tracker for any issues having the [bounty][BOUNTIES] tag.
-
 When submitting pull requests, please add test cases for any new features
 or fixes and make sure `nimble test` is still able to execute the entire
 test suite successfully.
@@ -156,6 +152,5 @@ or
 
 * Apache License, Version 2.0, ([LICENSE-APACHEv2](LICENSE-APACHEv2) or http://www.apache.org/licenses/LICENSE-2.0)
 
-at your option. This file may not be copied, modified, or distributed except according to those terms.
-
+at your option. These files may not be copied, modified, or distributed except according to those terms.
 
