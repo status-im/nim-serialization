@@ -102,7 +102,7 @@ proc makeFieldReadersTable(RecordType, Reader: distinct type):
   mixin enumAllSerializedFields, readFieldIMPL
 
   enumAllSerializedFields(RecordType, fieldName, FieldType):
-    proc readField(obj: var RecordType, reader: var Reader) {.nimcall.} =
+    proc readField(obj: var RecordType, reader: var Reader) {.gcsafe, nimcall.} =
       try:
         type F = FieldTag[RecordType, fieldName, type(FieldType)]
         obj.field(fieldName) = readFieldIMPL(F, reader)
@@ -140,7 +140,7 @@ macro setSerializedFields*(T: typedesc, fields: varargs[untyped]): untyped =
   for f in fields: fieldsArray.add newCall(bindSym"ident", newLit($f))
 
   template payload(T: untyped, fieldsArray) {.dirty.} =
-    bind default, quote, add, getType, newStmtList, newLit, newDotExpr, `$`, `[]`
+    bind default, quote, add, getType, newStmtList, newLit, newDotExpr, `$`, `[]`, getAst
 
     macro enumInstanceSerializedFields*(ins: T,
                                         fieldNameVar, fieldVar,
@@ -154,11 +154,15 @@ macro setSerializedFields*(T: typedesc, fields: varargs[untyped]): untyped =
           fieldName = newLit($field)
           fieldAccessor = newDotExpr(ins, field)
 
-        res.add quote do:
+        template fieldPayload(fieldNameVar, fieldName, fieldVar,
+                              fieldAccessor, body) =
           block:
-            const `fieldNameVar` = `fieldName`
-            template `fieldVar`: auto = `fieldAccessor`
-            `body`
+            const fieldNameVar = fieldName
+            template fieldVar: auto = fieldAccessor
+            body
+
+        res.add getAst(fieldPayload(fieldNameVar, fieldName, fieldVar,
+                                    fieldAccessor, body))
 
       return res
 
@@ -175,11 +179,17 @@ macro setSerializedFields*(T: typedesc, fields: varargs[untyped]): untyped =
           fieldName = newLit($field)
           fieldAccessor = newDotExpr(typ, field)
 
-        res.add quote do:
+        template fieldPayload(fieldNameVar, fieldName,
+                              fieldTypeVar, typ, field,
+                              body) =
           block:
-            const `fieldNameVar` = `fieldName`
-            type `fieldTypeVar` = type(default(`typ`).`field`)
-            `body`
+            const fieldNameVar = fieldName
+            type fieldTypeVar = type(default(typ).field)
+            body
+
+        res.add getAst(fieldPayload(fieldNameVar, fieldName,
+                                    fieldTypeVar, typ, field,
+                                    body))
 
       return res
 
