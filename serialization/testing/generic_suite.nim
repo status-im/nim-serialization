@@ -32,6 +32,8 @@ type
 proc default(T: typedesc): T = discard
 
 template roundtripTest*(Format: type, value: auto, expectedResult: auto) =
+  mixin `==`
+
   test Format.name & " " & value.type.name & " roundtrip":
     let v = value
     let serialized = Format.encode(v)
@@ -43,7 +45,8 @@ template roundtripTest*(Format: type, value: auto, expectedResult: auto) =
     try:
       let decoded = Format.decode(serialized, v.type)
       checkpoint "(decoded value): " & repr(decoded)
-      check decoded == v
+      let decodedValueMatchesOriginal = decoded == v
+      check decodedValueMatchesOriginal
     except SerializationError as err:
       checkpoint "(serialization error): " & err.formatMsg("(encoded value)")
       fail()
