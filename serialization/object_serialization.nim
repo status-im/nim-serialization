@@ -73,9 +73,17 @@ macro enumAllSerializedFieldsImpl(T: type, body: untyped): untyped =
   ## are skipped.
   ##
   var typeAst = getType(T)[1]
-  var typeImpl = getImpl(typeAst)
+  var typeImpl: NimNode
+  let isSymbol = not typeAst.isTuple
+
+
+  if not isSymbol:
+    typeImpl = typeAst
+  else:
+    typeImpl = getImpl(typeAst)
   result = newStmtList()
 
+  var i = 0
   for field in recordFields(typeImpl):
     if field.readPragma("dontSerialize") != nil:
       continue
@@ -87,16 +95,36 @@ macro enumAllSerializedFieldsImpl(T: type, body: untyped): untyped =
       discrimator = newLit(if field.caseField == nil: ""
                            else: $field.caseField[0])
       branches = field.caseBranch
+      fieldIndex = newLit(i)
+
+    let fieldNameVarTemplate =
+      if isSymbol:
+        quote:
+          template `fieldNameVar`: auto = `fieldName`
+      else:
+        quote:
+          template `fieldNameVar`: auto = $`fieldIndex`
+          # we can't access .Fieldn, so our helper knows
+          # to parseInt this
+
+    let field =
+      if isSymbol:
+        quote do: default(`T`).`fieldIdent`
+      else:
+        quote do: default(`T`)[`fieldIndex`]
 
     result.add quote do:
       block:
-        template `fieldNameVar`: auto = `fieldName`
+        `fieldNameVarTemplate`
         template fieldCaseDisciminator: auto = `discrimator`
         template fieldCaseBranches: auto = `branches`
+
         # type `fieldTypeVar` = `fieldType`
         # TODO: This is a work-around for a classic Nim issue:
-        type `FieldTypeSym` = type(default(`T`).`fieldIdent`)
+        type `FieldTypeSym` = type(`field`)
         `body`
+    
+    i += 1
 
 template enumAllSerializedFields*(T: type, body): untyped =
   when T is ref|ptr:
@@ -151,15 +179,24 @@ proc makeFieldReadersTable(RecordType, Reader: distinct type):
 
   enumAllSerializedFields(RecordType):
     proc readField(obj: var RecordType, reader: var Reader) {.gcsafe, nimcall.} =
+      when RecordType is tuple:
+        const i = fieldName.parseInt  
       try:
+
         type F = FieldTag[RecordType, fieldName, type(FieldType)]
-        obj.field(fieldName) = readFieldIMPL(F, reader)
+        when RecordType is not tuple:
+          obj.field(fieldName) = readFieldIMPL(F, reader)
+        else:
+          obj[i] = readFieldIMPL(F, reader)
       except SerializationError:
         raise
       except CatchableError as err:
+        when RecordType is not tuple:
+          let field = obj.field(fieldName)
+        else:
+          let field = obj[i]
         reader.handleReadException(`RecordType`, fieldName,
-                                   obj.field(fieldName), err)
-
+                                   field, err)
     result.add((fieldName, readField))
 
 proc fieldReadersTable*(RecordType, Reader: distinct type):

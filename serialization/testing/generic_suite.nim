@@ -253,6 +253,12 @@ proc executeRoundtripTests*(Format: type) =
       roundtrip s1
       roundtrip s2
 
+  test "tuple":
+    var t = (0, "e")
+    var namedT = (a: 0, b: "e")
+    roundtrip t
+    roundtrip namedT
+
 proc executeReaderWriterTests*(Format: type) =
   mixin init, ReaderType, WriterType
 
