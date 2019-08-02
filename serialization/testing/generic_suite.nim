@@ -1,5 +1,5 @@
 import
-  unittest, times, typetraits, random, strutils, options, sets,
+  unittest, times, typetraits, random, strutils, options, sets, tables,
   faststreams/input_stream,
   ../../serialization, ../object_serialization
 
@@ -225,6 +225,19 @@ proc executeRoundtripTests*(Format: type) =
       roundtrip l1
       roundtrip l2
       roundtrip l3
+
+    test "tables":
+      var
+        t1 = {"test": 0, "other": 1}.toTable()
+        t2 = {"test": 0, "other": 1}.toOrderedTable()
+        t3 = newTable[string, int]()
+
+      t3["test"] = 0
+      t3["other"] = 1
+
+      roundtrip t1
+      roundtrip t2
+      roundtrip t3
 
     test "sets":
       var s1 = toSet([1, 2, 3, 1, 4, 2])
