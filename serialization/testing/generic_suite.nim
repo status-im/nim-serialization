@@ -66,6 +66,13 @@ type
   HoldsArray* = object
     data*: seq[int]
 
+static:
+  assert isCaseObject(CaseObject)
+  assert isCaseObject(CaseObjectRef)
+
+  assert(not isCaseObject(Transaction))
+  assert(not isCaseObject(HoldsSet))
+
 Meter.borrowSerialization int
 Simple.setSerializedFields distance, x, y
 
@@ -288,5 +295,4 @@ proc executeReaderWriterTests*(Format: type) =
         findFieldReader(bazFields[], "some_other_name", pos) == nil
 
   executeRoundtripTests(Format)
-
 

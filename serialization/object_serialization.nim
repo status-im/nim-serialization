@@ -4,6 +4,15 @@ import
 type
   FieldTag[RecordType; fieldName: static string; FieldType] = distinct void
 
+let
+  # Identifiers affecting the public interface of the library:
+  valueVar {.compileTime.} = ident "value"
+  readerVar {.compileTime.} = ident "reader"
+  writerVar {.compileTime.} = ident "writer"
+  holderVar {.compileTime.} = ident "holder"
+  fieldNameVar {.compileTime.} = ident "fieldName"
+  FieldTypeSym {.compileTime.} = ident "FieldType"
+
 template dontSerialize* {.pragma.}
   ## Specifies that a certain field should be ignored for
   ## the purposes of serialization
@@ -33,18 +42,30 @@ template enumInstanceSerializedFields*(obj: auto,
     when not hasCustomPragmaFixed(ObjType, fieldNameVar, dontSerialize):
       body
 
-macro enumAllSerializedFields*(T: type,
-                               fieldNameVar, fieldTypeVar,
-                               body: untyped): untyped =
+macro enumAllSerializedFieldsImpl(T: type, body: untyped): untyped =
   ## Expands a block over all fields of a type
-  ##
-  ## Inside the block body, the passed `fieldNameVar` identifier
-  ## will refer to the name of each field as a string. `fieldTypeVar`
-  ## is an identifier that will refer to the field's type.
   ##
   ## Please note that the main difference between
   ## `enumInstanceSerializedFields` and `enumAllSerializedFields`
   ## is that the later will visit all fields of case objects.
+  ##
+  ## Inside the block body, the following symbols will be defined:
+  ##
+  ##  * `fieldName`
+  ##    String literal for the field name
+  ##
+  ##  * `FieldType`
+  ##    Type alias for the field type
+  ##
+  ##  * `fieldCaseDisciminator`
+  ##    String literal denoting the name of the case object
+  ##    discrimator under which the visited field is nested.
+  ##    If the field is not nested in a specific case branch,
+  ##    this will be an empty string.
+  ##
+  ##  * `fieldCaseBranches`
+  ##    A set literal node denoting the possible values of the
+  ##    case object discrimator which make this field accessible.
   ##
   ## The order of visited fields matches the order of the fields in
   ## the object definition unless `serialziedFields` is used to specify
@@ -60,17 +81,37 @@ macro enumAllSerializedFields*(T: type,
       continue
 
     let
-      fident = field.name
-      fieldName = newLit($field.name)
       fieldType = field.typ
+      fieldIdent = field.name
+      fieldName = newLit($fieldIdent)
+      discrimator = newLit(if field.caseField == nil: ""
+                           else: $field.caseField[0])
+      branches = field.caseBranch
 
     result.add quote do:
       block:
         template `fieldNameVar`: auto = `fieldName`
+        template fieldCaseDisciminator: auto = `discrimator`
+        template fieldCaseBranches: auto = `branches`
         # type `fieldTypeVar` = `fieldType`
         # TODO: This is a work-around for a classic Nim issue:
-        type `fieldTypeVar` = type(default(`T`).`fident`)
+        type `FieldTypeSym` = type(default(`T`).`fieldIdent`)
         `body`
+
+template enumAllSerializedFields*(T: type, body): untyped =
+  when T is ref|ptr:
+    type TT = type(default(T)[])
+    enumAllSerializedFieldsImpl(TT, body)
+  else:
+    enumAllSerializedFieldsImpl(T, body)
+
+func isCaseObject*(T: type): bool {.compileTime.} =
+  genExpr:
+    enumAllSerializedFields(T):
+      if fieldCaseDisciminator != "":
+        return newLit(true)
+
+    newLit(false)
 
 type
   FieldMarkerImpl*[name: static string] = object
@@ -84,7 +125,7 @@ type
 
 proc totalSerializedFieldsImpl(T: type): int =
   mixin enumAllSerializedFields
-  enumAllSerializedFields(T, fieldName, fieldType): inc result
+  enumAllSerializedFields(T): inc result
 
 template totalSerializedFields*(T: type): int =
   (static(totalSerializedFieldsImpl(T)))
@@ -101,7 +142,7 @@ proc makeFieldReadersTable(RecordType, Reader: distinct type):
                            seq[FieldReader[RecordType, Reader]] =
   mixin enumAllSerializedFields, readFieldIMPL
 
-  enumAllSerializedFields(RecordType, fieldName, FieldType):
+  enumAllSerializedFields(RecordType):
     proc readField(obj: var RecordType, reader: var Reader) {.gcsafe, nimcall.} =
       try:
         type F = FieldTag[RecordType, fieldName, type(FieldType)]
@@ -140,7 +181,8 @@ macro setSerializedFields*(T: typedesc, fields: varargs[untyped]): untyped =
   for f in fields: fieldsArray.add newCall(bindSym"ident", newLit($f))
 
   template payload(T: untyped, fieldsArray) {.dirty.} =
-    bind default, quote, add, getType, newStmtList, newLit, newDotExpr, `$`, `[]`, getAst
+    bind default, quote, add, getType, newStmtList,
+         ident, newLit, newDotExpr, `$`, `[]`, getAst
 
     macro enumInstanceSerializedFields*(ins: T,
                                         fieldNameVar, fieldVar,
@@ -154,6 +196,7 @@ macro setSerializedFields*(T: typedesc, fields: varargs[untyped]): untyped =
           fieldName = newLit($field)
           fieldAccessor = newDotExpr(ins, field)
 
+        # TODO replace with getAst once it's ready
         template fieldPayload(fieldNameVar, fieldName, fieldVar,
                               fieldAccessor, body) =
           block:
@@ -166,9 +209,7 @@ macro setSerializedFields*(T: typedesc, fields: varargs[untyped]): untyped =
 
       return res
 
-    macro enumAllSerializedFields*(typ: type T,
-                                   fieldNameVar, fieldTypeVar,
-                                   body: untyped): untyped =
+    macro enumAllSerializedFields*(typ: type T, body: untyped): untyped =
       var
         fields = fieldsArray
         res = newStmtList()
@@ -177,18 +218,24 @@ macro setSerializedFields*(T: typedesc, fields: varargs[untyped]): untyped =
       for field in fields:
         let
           fieldName = newLit($field)
-          fieldAccessor = newDotExpr(typ, field)
+          fieldNameVar = ident "fieldName"
+          FieldTypeSym = ident "FieldType"
 
+        # TODO replace with getAst once it's ready
         template fieldPayload(fieldNameVar, fieldName,
                               fieldTypeVar, typ, field,
                               body) =
           block:
             const fieldNameVar = fieldName
             type fieldTypeVar = type(default(typ).field)
+
+            template fieldCaseDisciminator: auto = ""
+            template fieldCaseBranches: auto = nil
+
             body
 
         res.add getAst(fieldPayload(fieldNameVar, fieldName,
-                                    fieldTypeVar, typ, field,
+                                    FieldTypeSym, typ, field,
                                     body))
 
       return res
@@ -211,13 +258,6 @@ proc getReaderAndWriter(customSerializationBody: NimNode): (NimNode, NimNode) =
       continue
     else:
       fail n
-
-let
-  # Identifiers affecting the public interface of the library:
-  readerVar {.compileTime.} = ident "reader"
-  writerVar {.compileTime.} = ident "writer"
-  holderVar {.compileTime.} = ident "holder"
-  valueVar  {.compileTime.} = ident "value"
 
 proc genCustomSerializationForField(Format, field,
                                     readBody, writeBody: NimNode): NimNode =
