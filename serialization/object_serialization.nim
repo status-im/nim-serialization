@@ -2,7 +2,7 @@ import
   stew/shims/macros, stew/objects
 
 type
-  FieldTag[RecordType; fieldName: static string; FieldType] = distinct void
+  FieldTag*[RecordType; fieldName: static string; FieldType] = distinct void
 
 let
   # Identifiers affecting the public interface of the library:
@@ -137,6 +137,13 @@ template readFieldIMPL[Reader](field: type FieldTag,
                                reader: var Reader): untyped =
   mixin readValue
   reader.readValue(field.FieldType)
+
+template writeFieldIMPL*[Writer](writer: var Writer,
+                                 fieldTag: type FieldTag,
+                                 fieldVal: auto,
+                                 holderObj: auto) =
+  mixin writeValue
+  writer.writeValue(fieldVal)
 
 proc makeFieldReadersTable(RecordType, Reader: distinct type):
                            seq[FieldReader[RecordType, Reader]] =
@@ -281,8 +288,10 @@ proc genCustomSerializationForField(Format, field,
   if writeBody != nil:
     result.add quote do:
       type Writer = WriterType(`Format`)
-      proc writeFieldIMPL*(F: type FieldTag[`RecordType`, `fieldName`, auto],
-                           `writerVar`: var Writer) =
+      proc writeFieldIMPL*(`writerVar`: var Writer,
+                           F: type FieldTag[`RecordType`, `fieldName`, auto],
+                           `valueVar`: auto,
+                           `holderVar`: `RecordType`) =
         `writeBody`
 
 proc genCustomSerializationForType(Format, typ: NimNode,
