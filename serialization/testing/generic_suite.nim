@@ -69,11 +69,7 @@ type
   AnonTuple* = (int, string, float64)
   
   AbcTuple* = tuple[a: int, b: string, c: float64]
-  
-  XyzTuple* = tuple
-    x*: int
-    y*: string
-    z*: float64
+  XyzTuple* = tuple[x: int, y: string, z: float64]
 
   HoldsTuples* = object
     t1*: AnonTuple
