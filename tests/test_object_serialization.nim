@@ -10,7 +10,7 @@ suite "object serialization":
 
   test "custom fields order":
     enumAllSerializedFields(Simple):
-      fieldsList.add(name(FieldType) & " " & fieldName & fieldCaseDisciminator)
+      fieldsList.add(name(FieldType) & " " & fieldName & fieldCaseDiscriminator)
 
     check fieldsList == @["Meter distance", "int x", "string y"]
 

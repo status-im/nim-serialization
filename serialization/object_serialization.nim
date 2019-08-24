@@ -57,15 +57,15 @@ macro enumAllSerializedFieldsImpl(T: type, body: untyped): untyped =
   ##  * `FieldType`
   ##    Type alias for the field type
   ##
-  ##  * `fieldCaseDisciminator`
+  ##  * `fieldCaseDiscriminator`
   ##    String literal denoting the name of the case object
-  ##    discrimator under which the visited field is nested.
+  ##    discriminator under which the visited field is nested.
   ##    If the field is not nested in a specific case branch,
   ##    this will be an empty string.
   ##
   ##  * `fieldCaseBranches`
   ##    A set literal node denoting the possible values of the
-  ##    case object discrimator which make this field accessible.
+  ##    case object discriminator which make this field accessible.
   ##
   ## The order of visited fields matches the order of the fields in
   ## the object definition unless `serialziedFields` is used to specify
@@ -92,7 +92,7 @@ macro enumAllSerializedFieldsImpl(T: type, body: untyped): untyped =
       fieldType = field.typ
       fieldIdent = field.name
       fieldName = newLit($fieldIdent)
-      discrimator = newLit(if field.caseField == nil: ""
+      discriminator = newLit(if field.caseField == nil: ""
                            else: $field.caseField[0])
       branches = field.caseBranch
       fieldIndex = newLit(i)
@@ -116,7 +116,7 @@ macro enumAllSerializedFieldsImpl(T: type, body: untyped): untyped =
     result.add quote do:
       block:
         `fieldNameVarTemplate`
-        template fieldCaseDisciminator: auto = `discrimator`
+        template fieldCaseDiscriminator: auto = `discriminator`
         template fieldCaseBranches: auto = `branches`
 
         # type `fieldTypeVar` = `fieldType`
@@ -136,7 +136,7 @@ template enumAllSerializedFields*(T: type, body): untyped =
 func isCaseObject*(T: type): bool {.compileTime.} =
   genExpr:
     enumAllSerializedFields(T):
-      if fieldCaseDisciminator != "":
+      if fieldCaseDiscriminator != "":
         return newLit(true)
 
     newLit(false)
@@ -273,7 +273,7 @@ macro setSerializedFields*(T: typedesc, fields: varargs[untyped]): untyped =
             const fieldNameVar = fieldName
             type fieldTypeVar = type(default(typ).field)
 
-            template fieldCaseDisciminator: auto = ""
+            template fieldCaseDiscriminator: auto = ""
             template fieldCaseBranches: auto = nil
 
             body
