@@ -107,8 +107,12 @@ template loadFile*[RecordType](Format: type,
   record = loadFile(Format, filename, RecordType, params)
 
 template saveFile*(Format: type, filename: string, args: varargs[untyped]) =
-  # TODO: This should use a proper output stream, instead of calling `encode`
-  writeFile(filename, Format.encode(args))
+  when false:
+    # TODO use faststreams output stream
+    discard
+  else:
+    let bytes = Format.encode(args)
+    writeFile(filename, cast[string](bytes))
 
 template borrowSerialization*(Alias: distinct type,
                               OriginalType: distinct type) {.dirty.} =
