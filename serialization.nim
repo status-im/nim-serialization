@@ -89,20 +89,20 @@ template loadFile*(Format: distinct type,
                    params: varargs[untyped]): auto =
   mixin init, ReaderType
   var stream = openFile(filename)
-  defer:
+  try:
+    # TODO:
+    # Remove this when statement once the following bug is fixed:
+    # https://github.com/nim-lang/Nim/issues/9996
+    when astToStr(params) != "":
+      var reader = init(ReaderType(Format), stream, params)
+    else:
+      var reader = init(ReaderType(Format), stream)
+
+    reader.readValue(RecordType)
+  finally:
     # TODO: destructors
     if not stream.isNil:
       stream[].close()
-
-  # TODO:
-  # Remove this when statement once the following bug is fixed:
-  # https://github.com/nim-lang/Nim/issues/9996
-  when astToStr(params) != "":
-    var reader = init(ReaderType(Format), stream, params)
-  else:
-    var reader = init(ReaderType(Format), stream)
-
-  reader.readValue(RecordType)
 
 template loadFile*[RecordType](Format: type,
                                filename: string,
