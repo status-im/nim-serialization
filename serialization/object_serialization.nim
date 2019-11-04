@@ -76,7 +76,6 @@ macro enumAllSerializedFieldsImpl(T: type, body: untyped): untyped =
   var typeImpl: NimNode
   let isSymbol = not typeAst.isTuple
 
-
   if not isSymbol:
     typeImpl = typeAst
   else:
@@ -100,10 +99,10 @@ macro enumAllSerializedFieldsImpl(T: type, body: untyped): untyped =
     let fieldNameVarTemplate =
       if isSymbol:
         quote:
-          template `fieldNameVar`: auto = `fieldName`
+          template `fieldNameVar`: auto {.used.} = `fieldName`
       else:
         quote:
-          template `fieldNameVar`: auto = $`fieldIndex`
+          template `fieldNameVar`: auto {.used.} = $`fieldIndex`
           # we can't access .Fieldn, so our helper knows
           # to parseInt this
 
@@ -116,12 +115,12 @@ macro enumAllSerializedFieldsImpl(T: type, body: untyped): untyped =
     result.add quote do:
       block:
         `fieldNameVarTemplate`
-        template fieldCaseDiscriminator: auto = `discriminator`
-        template fieldCaseBranches: auto = `branches`
+        template fieldCaseDiscriminator: auto {.used.} = `discriminator`
+        template fieldCaseBranches: auto {.used.} = `branches`
 
         # type `fieldTypeVar` = `fieldType`
         # TODO: This is a work-around for a classic Nim issue:
-        type `FieldTypeSym` = type(`field`)
+        type `FieldTypeSym` {.used.} = type(`field`)
         `body`
     
     i += 1
@@ -180,7 +179,7 @@ proc makeFieldReadersTable(RecordType, Reader: distinct type):
   enumAllSerializedFields(RecordType):
     proc readField(obj: var RecordType, reader: var Reader) {.gcsafe, nimcall.} =
       when RecordType is tuple:
-        const i = fieldName.parseInt  
+        const i = fieldName.parseInt
       try:
 
         type F = FieldTag[RecordType, fieldName, type(FieldType)]
@@ -270,11 +269,11 @@ macro setSerializedFields*(T: typedesc, fields: varargs[untyped]): untyped =
                               fieldTypeVar, typ, field,
                               body) =
           block:
-            const fieldNameVar = fieldName
-            type fieldTypeVar = type(default(typ).field)
+            const fieldNameVar {.used.} = fieldName
+            type fieldTypeVar {.used.} = type(default(typ).field)
 
-            template fieldCaseDiscriminator: auto = ""
-            template fieldCaseBranches: auto = nil
+            template fieldCaseDiscriminator: auto {.used.} = ""
+            template fieldCaseBranches: auto {.used.} = nil
 
             body
 

@@ -67,7 +67,7 @@ type
     data*: seq[int]
 
   AnonTuple* = (int, string, float64)
-  
+
   AbcTuple* = tuple[a: int, b: string, c: float64]
   XyzTuple* = tuple[x: int, y: string, z: float64]
 
@@ -127,6 +127,10 @@ template roundtripChecks*(Format: type, value: auto, expectedResult: auto) =
   except SerializationError as err:
     checkpoint "(serialization error): " & err.formatMsg("(encoded value)")
     fail()
+  except:
+    when compiles($value):
+      checkpoint "unexpected failure in roundtrip test for " & $value
+    raise
 
 template roundtripTest*(Format: type, value: auto, expectedResult: auto) =
   mixin `==`
@@ -141,12 +145,6 @@ template roundtripChecks*(Format: type, value: auto) =
   roundtripChecks(Format, value, NoExpectedResult(0))
 
 proc executeRoundtripTests*(Format: type) =
-  mixin init, ReaderType, WriterType
-
-  type
-    Reader = ReaderType Format
-    Writer = WriterType Format
-
   template roundtrip(val: untyped) =
     mixin supports
     # TODO:
@@ -160,18 +158,20 @@ proc executeRoundtripTests*(Format: type) =
       template intTests(T: untyped) =
         roundtrip low(T)
         roundtrip high(T)
-        for i in 0..1000:
-          roundtrip rand(low(T)..high(T))
+        when false:
+          # TODO:
+          # rand(low..high) produces an overflow error in Nim 1.0.2
+          for i in 0..1000:
+            roundtrip rand(low(T)..(high(T) div 2))
 
-      when false:
-        intTests int8
-        intTests int16
-        intTests int32
-        intTests int64
-        intTests uint8
-        intTests uint16
-        intTests uint32
-        intTests uint64
+      intTests int8
+      intTests int16
+      intTests int32
+      intTests int64
+      intTests uint8
+      intTests uint16
+      intTests uint32
+      intTests uint64
 
       roundtrip ""
       roundtrip "a"
@@ -257,8 +257,8 @@ proc executeRoundtripTests*(Format: type) =
       roundtrip t3
 
     test "sets":
-      var s1 = toSet([1, 2, 3, 1, 4, 2])
-      var s2 = HoldsSet(a: 100, s: toSet(["a", "b", "c"]))
+      var s1 = toHashSet([1, 2, 3, 1, 4, 2])
+      var s2 = HoldsSet(a: 100, s: toHashSet(["a", "b", "c"]))
 
       roundtrip s1
       roundtrip s2
@@ -274,7 +274,6 @@ proc executeReaderWriterTests*(Format: type) =
 
   type
     Reader = ReaderType Format
-    Writer = WriterType Format
 
   suite(typetraits.name(Format) & " read/write tests"):
     test "Low-level field reader test":
