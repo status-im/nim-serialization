@@ -37,10 +37,16 @@ template enumInstanceSerializedFields*(obj: auto,
   ## value being deserialized.
   ##
   type ObjType = type(obj)
+  type XX = type(default ObjType)
 
-  for fieldNameVar, fieldVar in fieldPairs(obj):
-    when not hasCustomPragmaFixed(ObjType, fieldNameVar, dontSerialize):
-      body
+  when obj is ref:
+    for fieldNameVar, fieldVar in fieldPairs(obj[]):
+      when not hasCustomPragmaFixed(ObjType, ObjType, fieldNameVar, dontSerialize):
+        body
+  else:
+    for fieldNameVar, fieldVar in fieldPairs(obj):
+      when not hasCustomPragmaFixed(ObjType, ObjType, fieldNameVar, dontSerialize):
+        body
 
 macro enumAllSerializedFieldsImpl(T: type, body: untyped): untyped =
   ## Expands a block over all fields of a type
