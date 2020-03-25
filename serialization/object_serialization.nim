@@ -122,7 +122,7 @@ macro enumAllSerializedFieldsImpl(T: type, body: untyped): untyped =
         # TODO: This is a work-around for a classic Nim issue:
         type `FieldTypeSym` {.used.} = type(`field`)
         `body`
-    
+
     i += 1
 
 template enumAllSerializedFields*(T: type, body): untyped =
@@ -181,21 +181,20 @@ proc makeFieldReadersTable(RecordType, Reader: distinct type):
       when RecordType is tuple:
         const i = fieldName.parseInt
       try:
-
         type F = FieldTag[RecordType, fieldName, type(FieldType)]
-        when RecordType is not tuple:
-          obj.field(fieldName) = readFieldIMPL(F, reader)
-        else:
+        when RecordType is tuple:
           obj[i] = readFieldIMPL(F, reader)
+        else:
+          field(obj, fieldName) = readFieldIMPL(F, reader)
       except SerializationError:
         raise
       except CatchableError as err:
-        when RecordType is not tuple:
-          let field = obj.field(fieldName)
-        else:
-          let field = obj[i]
-        reader.handleReadException(`RecordType`, fieldName,
-                                   field, err)
+        reader.handleReadException(
+          `RecordType`,
+          fieldName,
+          when RecordType is tuple: obj[i] else: field(obj, fieldName),
+          err)
+
     result.add((fieldName, readField))
 
 proc fieldReadersTable*(RecordType, Reader: distinct type):

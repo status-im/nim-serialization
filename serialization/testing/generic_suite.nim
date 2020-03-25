@@ -14,30 +14,40 @@ type
     ignored*: int
 
   Transaction* = object
-    amount: int
-    time: DateTime
-    sender: string
-    receiver: string
+    amount*: int
+    time*: DateTime
+    sender*: string
+    receiver*: string
+
+  DerivedFromRoot* = object of RootObj
+    a*: string
+    b*: int
+
+  DerivedFromRootRef = ref DerivedFromRoot
+
+  RefTypeDerivedFromRoot* = ref object of RootObj
+    a*: int
+    b*: string
 
   Foo = object
-    x: uint64
-    y: string
-    z: seq[int]
+    x*: uint64
+    y*: string
+    z*: seq[int]
 
   Bar = object
-    b: string
-    f: Foo
-
-  ListOfLists = object
-    lists: seq[ListOfLists]
+    b*: string
+    f*: Foo
 
   # Baz should use custom serialization
   # The `i` field should be multiplied by two while deserializing and
   # `ignored` field should be set to 10
   Baz = object
-    f: Foo
-    i: int
-    ignored {.dontSerialize.}: int
+    f*: Foo
+    i*: int
+    ignored* {.dontSerialize.}: int
+
+  ListOfLists = object
+    lists*: seq[ListOfLists]
 
   NoExpectedResult = distinct int
 
@@ -46,7 +56,7 @@ type
     B
 
   CaseObject* = object
-   case kind: ObjectKind:
+   case kind*: ObjectKind:
    of A:
      a*: int
      other*: CaseObjectRef
@@ -54,6 +64,9 @@ type
      b*: int
 
   CaseObjectRef* = ref CaseObject
+
+  HoldsCaseObject* = object
+    value: CaseObject
 
   HoldsSet* = object
     a*: int
@@ -111,22 +124,30 @@ func caseObjectEquals(a, b: CaseObject): bool =
 func `==`*(a, b: CaseObject): bool =
   caseObjectEquals(a, b)
 
+template maybeDefer(x: auto): auto =
+  when type(x) is ref:
+    x[]
+  else:
+    x
+
 template roundtripChecks*(Format: type, value: auto, expectedResult: auto) =
-  let v = value
-  let serialized = encode(Format, v)
+  let origValue = value
+  let serialized = encode(Format, origValue)
   checkpoint "(encoded value): " & $serialized
 
   when not (expectedResult is NoExpectedResult):
     check serialized == expectedResult
 
   try:
-    let decoded = Format.decode(serialized, type(v))
+    let decoded = Format.decode(serialized, type(origValue))
     checkpoint "(decoded value): " & repr(decoded)
-    let decodedValueMatchesOriginal = decoded == v
-    check decodedValueMatchesOriginal
+    let success = maybeDefer(decoded) == maybeDefer(origValue)
+    check success
+
   except SerializationError as err:
     checkpoint "(serialization error): " & err.formatMsg("(encoded value)")
     fail()
+
   except:
     when compiles($value):
       checkpoint "unexpected failure in roundtrip test for " & $value
@@ -158,11 +179,8 @@ proc executeRoundtripTests*(Format: type) =
       template intTests(T: untyped) =
         roundtrip low(T)
         roundtrip high(T)
-        when false:
-          # TODO:
-          # rand(low..high) produces an overflow error in Nim 1.0.2
-          for i in 0..1000:
-            roundtrip rand(low(T)..(high(T) div 2))
+        for i in 0..1000:
+          roundtrip rand(T)
 
       intTests int8
       intTests int16
@@ -194,9 +212,8 @@ proc executeRoundtripTests*(Format: type) =
                   f: Foo(x: 5'u64, y: "hocus pocus", z: @[100, 200, 300]))
       roundtrip b
 
-      when false:
-        # TODO: This requires the test suite of each format to implement
-        # support for the DateTime type.
+      when false and supports(Format, Transaction):
+        # Some formats may not support the DateTime type.
         var t = Transaction(time: now(), amount: 1000, sender: "Alice", receiver: "Bob")
         roundtrip t
 
@@ -205,21 +222,32 @@ proc executeRoundtripTests*(Format: type) =
         # and give it a more proper name. The custom serialization demands
         # that the `ignored` field is populated with a value depending on
         # the `i` value. `i` itself is doubled on deserialization.
-        var origVal = Baz(f: Foo(x: 10'u64, y: "y", z: @[]), ignored: 5)
-        bytes = Format.encode(origVal)
-        var restored = Format.decode(bytes, Baz)
+        let
+          origVal = Baz(f: Foo(x: 10'u64, y: "y", z: @[]), ignored: 5)
+          encoded = Format.encode(origVal)
+          restored = Format.decode(encoded, Baz)
 
         check:
           origVal.f.x == restored.f.x
-          origVal.f.i == restored.f.i div 2
           origVal.f.y.len == restored.f.y.len
+          origVal.i == restored.i div 2
           restored.ignored == 10
+
+      block:
+        let
+          a = DerivedFromRoot(a: "test", b: -1000)
+          b = DerivedFromRootRef(a: "another test", b: 2000)
+          c = RefTypeDerivedFromRoot(a: high(int), b: "")
+
+        roundtrip a
+        roundtrip b
+        roundtrip c
 
     test "case objects":
       var
         c1 = CaseObjectRef(kind: B, b: 100)
         c2 = CaseObjectRef(kind: A, a: 80, other: CaseObjectRef(kind: B))
-        c3 = CaseObject(kind: A, a: 60, other: nil)
+        c3 = HoldsCaseObject(value: CaseObject(kind: A, a: 60, other: c1))
 
       roundtrip c1
       roundtrip c2
@@ -263,11 +291,11 @@ proc executeRoundtripTests*(Format: type) =
       roundtrip s1
       roundtrip s2
 
-  test "tuple":
-    var t = (0, "e")
-    var namedT = (a: 0, b: "e")
-    roundtrip t
-    roundtrip namedT
+    test "tuple":
+      var t = (0, "e")
+      var namedT = (a: 0, b: "e")
+      roundtrip t
+      roundtrip namedT
 
 proc executeReaderWriterTests*(Format: type) =
   mixin init, ReaderType, WriterType
