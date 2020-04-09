@@ -56,7 +56,7 @@ type
     B
 
   CaseObject* = object
-   case kind*: ObjectKind:
+   case kind*: ObjectKind
    of A:
      a*: int
      other*: CaseObjectRef
