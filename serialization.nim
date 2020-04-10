@@ -1,5 +1,6 @@
 import
-  faststreams, serialization/[object_serialization, errors]
+  stew/shims/macros, faststreams,
+  serialization/[object_serialization, errors]
 
 export
   faststreams, object_serialization, errors
@@ -22,47 +23,21 @@ template serializationFormat*(Name: untyped,
                               mimeType: static string = "") =
   serializationFormatImpl(Name, Reader, Writer, PreferedOutput, mimeType)
 
-proc encodeImpl(writer: var auto, value: auto) =
-  mixin writeValue, getOutput
-  writer.writeValue value
-
 template encode*(Format: type, value: auto, params: varargs[untyped]): auto =
-  mixin init, WriterType, PreferedOutputType
-  var s = init OutputStream
-
-  # TODO:
-  # Remove this when statement once the following bug is fixed:
-  # https://github.com/nim-lang/Nim/issues/9996
-  when astToStr(params) != "":
-    var writer = init(WriterType(Format), s, params)
-  else:
-    var writer = init(WriterType(Format), s)
-
-  encodeImpl(writer, value)
-  s.getOutput PreferedOutputType(Format)
+  mixin init, WriterType, writeValue, PreferedOutputType
+  {.noSideEffect.}:
+    # We assume that there is no side-effects here, because we are
+    # using a `memoryOutput`. The computed side-effects are coming
+    # from the fact that the dynamic dispatch mechanisms used in
+    # faststreams may be writing to a file or a network device.
+    var s = memoryOutput()
+    var writer = unpackArgs(init, [WriterType(Format), s, params])
+    writeValue writer, value
+    s.getOutput PreferedOutputType(Format)
 
 proc readValue*(reader: var auto, T: type): T =
   mixin readValue
   reader.readValue(result)
-
-template decode*(Format: distinct type,
-                 input: string,
-                 RecordType: distinct type,
-                 params: varargs[untyped]): auto =
-  # TODO, this is dusplicated only due to a Nim bug:
-  # If `input` was `string|openarray[byte]`, it won't match `seq[byte]`
-  mixin init, ReaderType
-  var stream = memoryStream(input)
-
-  # TODO:
-  # Remove this when statement once the following bug is fixed:
-  # https://github.com/nim-lang/Nim/issues/9996
-  when astToStr(params) != "":
-    var reader = init(ReaderType(Format), stream, params)
-  else:
-    var reader = init(ReaderType(Format), stream)
-
-  reader.readValue(RecordType)
 
 template decode*(Format: distinct type,
                  input: openarray[byte],
@@ -71,17 +46,30 @@ template decode*(Format: distinct type,
   # TODO, this is dusplicated only due to a Nim bug:
   # If `input` was `string|openarray[byte]`, it won't match `seq[byte]`
   mixin init, ReaderType
-  var stream = memoryStream(input)
+  {.noSideEffect.}:
+    # We assume that there are no side-effects here, because we are
+    # using a `memoryInput`. The computed side-effects are coming
+    # from the fact that the dynamic dispatch mechanisms used in
+    # faststreams may be reading from a file or a network device.
+    var stream = memoryInput(input)
+    var reader = unpackArgs(init, [ReaderType(Format), stream, params])
+    reader.readValue(RecordType)
 
-  # TODO:
-  # Remove this when statement once the following bug is fixed:
-  # https://github.com/nim-lang/Nim/issues/9996
-  when astToStr(params) != "":
-    var reader = init(ReaderType(Format), stream, params)
-  else:
-    var reader = init(ReaderType(Format), stream)
-
-  reader.readValue(RecordType)
+template decode*(Format: distinct type,
+                 input: openarray[byte],
+                 RecordType: distinct type,
+                 params: varargs[untyped]): auto =
+  # TODO, this is dusplicated only due to a Nim bug:
+  # If `input` was `string|openarray[byte]`, it won't match `seq[byte]`
+  mixin init, ReaderType
+  {.noSideEffect.}:
+    # We assume that there are no side-effects here, because we are
+    # using a `memoryInput`. The computed side-effects are coming
+    # from the fact that the dynamic dispatch mechanisms used in
+    # faststreams may be reading from a file or a network device.
+    var stream = memoryInput(input)
+    var reader = unpackArgs(init, [ReaderType(Format), stream, params])
+    reader.readValue(RecordType)
 
 template loadFile*(Format: distinct type,
                    filename: string,

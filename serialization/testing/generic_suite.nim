@@ -316,7 +316,7 @@ proc executeReaderWriterTests*(Format: type) =
       check fieldReader != nil and idx == 1
 
       var bytes = Format.encode("test")
-      var stream = memoryStream(bytes)
+      var stream = memoryInput(bytes)
       var reader = Reader.init(stream)
 
       var bar: Bar
