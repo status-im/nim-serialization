@@ -40,7 +40,7 @@ proc readValue*(reader: var auto, T: type): T =
   reader.readValue(result)
 
 template decode*(Format: distinct type,
-                 input: openarray[byte],
+                 input: string,
                  RecordType: distinct type,
                  params: varargs[untyped]): auto =
   # TODO, this is dusplicated only due to a Nim bug:
@@ -75,22 +75,11 @@ template loadFile*(Format: distinct type,
                    filename: string,
                    RecordType: distinct type,
                    params: varargs[untyped]): auto =
-  mixin init, ReaderType
-  var stream = openFile(filename)
-  try:
-    # TODO:
-    # Remove this when statement once the following bug is fixed:
-    # https://github.com/nim-lang/Nim/issues/9996
-    when astToStr(params) != "":
-      var reader = init(ReaderType(Format), stream, params)
-    else:
-      var reader = init(ReaderType(Format), stream)
+  mixin init, ReaderType, readValue
 
-    reader.readValue(RecordType)
-  finally:
-    # TODO: destructors
-    if not stream.isNil:
-      stream[].close()
+  var stream = fileInput(filename)
+  var reader = unpackArgs(init, [ReaderType(Format), stream, params])
+  reader.readValue(RecordType)
 
 template loadFile*[RecordType](Format: type,
                                filename: string,
@@ -98,13 +87,13 @@ template loadFile*[RecordType](Format: type,
                                params: varargs[untyped]) =
   record = loadFile(Format, filename, RecordType, params)
 
-template saveFile*(Format: type, filename: string, args: varargs[untyped]) =
-  when false:
-    # TODO use faststreams output stream
-    discard
-  else:
-    let bytes = Format.encode(args)
-    writeFile(filename, cast[string](bytes))
+template saveFile*(Format: type, filename: string, value: auto, params: varargs[untyped]) =
+  mixin init, WriterType, writeValue
+
+  var stream = fileOutput(filename)
+  var writer = unpackArgs(init, [WriterType(Format), stream, params])
+  writer.writeValue(value)
+  flush stream
 
 template borrowSerialization*(Alias: distinct type,
                               OriginalType: distinct type) {.dirty.} =
