@@ -30,14 +30,20 @@ template encode*(Format: type, value: auto, params: varargs[untyped]): auto =
     # using a `memoryOutput`. The computed side-effects are coming
     # from the fact that the dynamic dispatch mechanisms used in
     # faststreams may be writing to a file or a network device.
-    var s = memoryOutput()
-    var writer = unpackArgs(init, [WriterType(Format), s, params])
-    writeValue writer, value
-    s.getOutput PreferedOutputType(Format)
+    try:
+      var s = memoryOutput()
+      var writer = unpackArgs(init, [WriterType(Format), s, params])
+      writeValue writer, value
+      s.getOutput PreferedOutputType(Format)
+    except IOError:
+      raise (ref Defect)() # a memoryOutput cannot have an IOError
 
+# TODO Nim cannot make sense of this initialization by var param?
+{.push warning[ProveInit]: off.}
 proc readValue*(reader: var auto, T: type): T =
   mixin readValue
   reader.readValue(result)
+{.pop.}
 
 template decode*(Format: distinct type,
                  input: string,
@@ -51,9 +57,12 @@ template decode*(Format: distinct type,
     # using a `memoryInput`. The computed side-effects are coming
     # from the fact that the dynamic dispatch mechanisms used in
     # faststreams may be reading from a file or a network device.
-    var stream = memoryInput(input)
-    var reader = unpackArgs(init, [ReaderType(Format), stream, params])
-    reader.readValue(RecordType)
+    try:
+      var stream = memoryInput(input)
+      var reader = unpackArgs(init, [ReaderType(Format), stream, params])
+      reader.readValue(RecordType)
+    except IOError:
+      raise (ref Defect)() # A memoryInput cannot have an IOError
 
 template decode*(Format: distinct type,
                  input: openarray[byte],
@@ -67,9 +76,12 @@ template decode*(Format: distinct type,
     # using a `memoryInput`. The computed side-effects are coming
     # from the fact that the dynamic dispatch mechanisms used in
     # faststreams may be reading from a file or a network device.
-    var stream = memoryInput(input)
-    var reader = unpackArgs(init, [ReaderType(Format), stream, params])
-    reader.readValue(RecordType)
+    try:
+      var stream = memoryInput(input)
+      var reader = unpackArgs(init, [ReaderType(Format), stream, params])
+      reader.readValue(RecordType)
+    except IOError:
+      raise (ref Defect)() # a memoryInput cannot have an IOError
 
 template loadFile*(Format: distinct type,
                    filename: string,
