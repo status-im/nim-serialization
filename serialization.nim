@@ -78,8 +78,11 @@ template loadFile*(Format: distinct type,
   mixin init, ReaderType, readValue
 
   var stream = fileInput(filename)
-  var reader = unpackArgs(init, [ReaderType(Format), stream, params])
-  reader.readValue(RecordType)
+  try:
+    var reader = unpackArgs(init, [ReaderType(Format), stream, params])
+    reader.readValue(RecordType)
+  finally:
+    close stream
 
 template loadFile*[RecordType](Format: type,
                                filename: string,
@@ -91,9 +94,12 @@ template saveFile*(Format: type, filename: string, value: auto, params: varargs[
   mixin init, WriterType, writeValue
 
   var stream = fileOutput(filename)
-  var writer = unpackArgs(init, [WriterType(Format), stream, params])
-  writer.writeValue(value)
-  flush stream
+  try:
+    var writer = unpackArgs(init, [WriterType(Format), stream, params])
+    writer.writeValue(value)
+    flush stream
+  finally:
+    close stream
 
 template borrowSerialization*(Alias: distinct type,
                               OriginalType: distinct type) {.dirty.} =
