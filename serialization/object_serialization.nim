@@ -311,7 +311,7 @@ proc genCustomSerializationForField(Format, field,
 
   result = newStmtList()
   result.add quote do:
-    type `FieldType` = type default(`RecordType`).`fieldIdent`
+    type `FieldType` = type declval(`RecordType`).`fieldIdent`
 
   if readBody != nil:
     result.add quote do:
