@@ -1,6 +1,6 @@
 import
   unittest, times, typetraits, random, strutils, options, sets, tables,
-  faststreams/input_stream,
+  faststreams/inputs,
   ../../serialization, ../object_serialization
 
 type
@@ -318,7 +318,7 @@ proc executeReaderWriterTests*(Format: type) =
       check fieldReader != nil and idx == 1
 
       var bytes = Format.encode("test")
-      var stream = memoryInput(bytes)
+      var stream = unsafeMemoryInput(bytes)
       var reader = Reader.init(stream)
 
       var bar: Bar

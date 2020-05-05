@@ -58,11 +58,11 @@ template decode*(Format: distinct type,
     # from the fact that the dynamic dispatch mechanisms used in
     # faststreams may be reading from a file or a network device.
     try:
-      var stream = memoryInput(input)
+      var stream = unsafeMemoryInput(input)
       var reader = unpackArgs(init, [ReaderType(Format), stream, params])
       reader.readValue(RecordType)
     except IOError:
-      raise (ref Defect)() # A memoryInput cannot have an IOError
+      raise (ref Defect)() # memory inputs cannot raise an IOError
 
 template decode*(Format: distinct type,
                  input: openarray[byte],
@@ -77,11 +77,11 @@ template decode*(Format: distinct type,
     # from the fact that the dynamic dispatch mechanisms used in
     # faststreams may be reading from a file or a network device.
     try:
-      var stream = memoryInput(input)
+      var stream = unsafeMemoryInput(input)
       var reader = unpackArgs(init, [ReaderType(Format), stream, params])
       reader.readValue(RecordType)
     except IOError:
-      raise (ref Defect)() # a memoryInput cannot have an IOError
+      raise (ref Defect)() # memory inputs cannot raise an IOError
 
 template loadFile*(Format: distinct type,
                    filename: string,
