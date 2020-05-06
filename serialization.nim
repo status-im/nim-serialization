@@ -89,7 +89,7 @@ template loadFile*(Format: distinct type,
                    params: varargs[untyped]): auto =
   mixin init, ReaderType, readValue
 
-  var stream = fileInput(filename)
+  var stream = memFileInput(filename)
   try:
     var reader = unpackArgs(init, [ReaderType(Format), stream, params])
     reader.readValue(RecordType)
