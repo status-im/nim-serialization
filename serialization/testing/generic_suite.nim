@@ -276,6 +276,7 @@ proc executeRoundtripTests*(Format: type) =
         t1 = {"test": 0, "other": 1}.toTable()
         t2 = {"test": 0, "other": 1}.toOrderedTable()
         t3 = newTable[string, int]()
+        t4 = {0: "test", 1: "other"}.toTable()
 
       t3["test"] = 0
       t3["other"] = 1
@@ -283,6 +284,7 @@ proc executeRoundtripTests*(Format: type) =
       roundtrip t1
       roundtrip t2
       roundtrip t3
+      roundtrip t4
 
     test "sets":
       var s1 = toHashSet([1, 2, 3, 1, 4, 2])
