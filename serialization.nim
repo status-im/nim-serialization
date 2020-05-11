@@ -109,7 +109,6 @@ template saveFile*(Format: type, filename: string, value: auto, params: varargs[
   try:
     var writer = unpackArgs(init, [WriterType(Format), stream, params])
     writer.writeValue(value)
-    flush stream
   finally:
     close stream
 
