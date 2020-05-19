@@ -185,7 +185,12 @@ proc makeFieldReadersTable(RecordType, Reader: distinct type):
         when RecordType is tuple:
           obj[i] = readFieldIMPL(F, reader)
         else:
-          field(obj, fieldName) = readFieldIMPL(F, reader)
+          # TODO: The `FieldType` coercion below is required to deal
+          # with a nim bug caused by the distinct `ssz.List` type.
+          # It seems to break the generics cache mechanism, which
+          # leads to an incorrect return type being reported from
+          # the `readFieldIMPL` function.
+          field(obj, fieldName) = FieldType readFieldIMPL(F, reader)
       except SerializationError:
         raise
       except CatchableError as err:
