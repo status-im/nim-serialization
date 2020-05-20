@@ -6,16 +6,18 @@ type
 
 let
   # Identifiers affecting the public interface of the library:
-  valueVar {.compileTime.} = ident "value"
-  readerVar {.compileTime.} = ident "reader"
-  writerVar {.compileTime.} = ident "writer"
-  holderVar {.compileTime.} = ident "holder"
-  fieldNameVar {.compileTime.} = ident "fieldName"
-  FieldTypeSym {.compileTime.} = ident "FieldType"
+  valueSym {.compileTime.} = ident "value"
+  readerSym {.compileTime.} = ident "reader"
+  writerSym {.compileTime.} = ident "writer"
+  holderSym {.compileTime.} = ident "holder"
 
 template dontSerialize* {.pragma.}
   ## Specifies that a certain field should be ignored for
   ## the purposes of serialization
+
+template serializedFieldName*(name: string) {.pragma.}
+  ## Specifies an alternative name for the field that will
+  ## be used in formats that include field names.
 
 template enumInstanceSerializedFields*(obj: auto,
                                        fieldNameVar, fieldVar,
@@ -38,8 +40,12 @@ template enumInstanceSerializedFields*(obj: auto,
   ##
   type ObjType = type(obj)
 
-  for fieldNameVar, fieldVar in fieldPairs(obj):
-    when not hasCustomPragmaFixed(ObjType, fieldNameVar, dontSerialize):
+  for fieldName, fieldVar in fieldPairs(obj):
+    when not hasCustomPragmaFixed(ObjType, fieldName, dontSerialize):
+      when hasCustomPragmaFixed(ObjType, fieldName, serializedFieldName):
+        const fieldNameVar = getCustomPragmaFixed(ObjType, fieldName, serializedFieldName)
+      else:
+        const fieldNameVar = fieldName
       body
 
 macro enumAllSerializedFieldsImpl(T: type, body: untyped): untyped =
@@ -52,7 +58,12 @@ macro enumAllSerializedFieldsImpl(T: type, body: untyped): untyped =
   ## Inside the block body, the following symbols will be defined:
   ##
   ##  * `fieldName`
-  ##    String literal for the field name
+  ##    String literal for the field name.
+  ##    The value can be affected by the `serializedFieldName` pragma.
+  ##
+  ##  * `realFieldName`
+  ##    String literal for actual field name in the Nim type
+  ##    definition. Not affected by the `serializedFieldName` pragma.
   ##
   ##  * `FieldType`
   ##    Type alias for the field type
@@ -90,37 +101,42 @@ macro enumAllSerializedFieldsImpl(T: type, body: untyped): untyped =
     let
       fieldType = field.typ
       fieldIdent = field.name
-      fieldName = newLit($fieldIdent)
+      realFieldName = newLit($fieldIdent)
+      serializedFieldName = field.readPragma("serializedFieldName")
+      fieldName = if serializedFieldName == nil: realFieldName
+                  else: serializedFieldName
       discriminator = newLit(if field.caseField == nil: ""
                            else: $field.caseField[0])
       branches = field.caseBranch
       fieldIndex = newLit(i)
 
-    let fieldNameVarTemplate =
+    let fieldNameDefs =
       if isSymbol:
         quote:
-          template `fieldNameVar`: auto {.used.} = `fieldName`
+          const fieldName {.inject, used.} = `fieldName`
+          const realFieldName {.inject, used.} = `realFieldName`
       else:
         quote:
-          template `fieldNameVar`: auto {.used.} = $`fieldIndex`
+          const fieldName {.inject, used.} = $`fieldIndex`
+          const realFieldName {.inject, used.} = $`fieldIndex`
           # we can't access .Fieldn, so our helper knows
           # to parseInt this
 
     let field =
       if isSymbol:
-        quote do: default(`T`).`fieldIdent`
+        quote do: declval(`T`).`fieldIdent`
       else:
-        quote do: default(`T`)[`fieldIndex`]
+        quote do: declval(`T`)[`fieldIndex`]
 
     result.add quote do:
       block:
-        `fieldNameVarTemplate`
+        `fieldNameDefs`
+
+        type FieldType {.inject, used.} = type(`field`)
+
         template fieldCaseDiscriminator: auto {.used.} = `discriminator`
         template fieldCaseBranches: auto {.used.} = `branches`
 
-        # type `fieldTypeVar` = `fieldType`
-        # TODO: This is a work-around for a classic Nim issue:
-        type `FieldTypeSym` {.used.} = type(`field`)
         `body`
 
     i += 1
@@ -181,7 +197,7 @@ proc makeFieldReadersTable(RecordType, Reader: distinct type):
       when RecordType is tuple:
         const i = fieldName.parseInt
       try:
-        type F = FieldTag[RecordType, fieldName, type(FieldType)]
+        type F = FieldTag[RecordType, realFieldName, type(FieldType)]
         when RecordType is tuple:
           obj[i] = readFieldIMPL(F, reader)
         else:
@@ -190,14 +206,14 @@ proc makeFieldReadersTable(RecordType, Reader: distinct type):
           # It seems to break the generics cache mechanism, which
           # leads to an incorrect return type being reported from
           # the `readFieldIMPL` function.
-          field(obj, fieldName) = FieldType readFieldIMPL(F, reader)
+          field(obj, realFieldName) = FieldType readFieldIMPL(F, reader)
       except SerializationError:
         raise
       except CatchableError as err:
         reader.handleReadException(
           `RecordType`,
           fieldName,
-          when RecordType is tuple: obj[i] else: field(obj, fieldName),
+          when RecordType is tuple: obj[i] else: field(obj, realFieldName),
           err)
 
     result.add((fieldName, readField))
@@ -247,13 +263,14 @@ macro setSerializedFields*(T: typedesc, fields: varargs[untyped]): untyped =
         template fieldPayload(fieldNameVar, fieldName, fieldVar,
                               fieldAccessor, body) =
           block:
-            const fieldNameVar = fieldName
-            template fieldVar: auto = fieldAccessor
+            const fieldNameVar {.inject, used.} = fieldName
+            template fieldVar: auto {.used.} = fieldAccessor
+
             body
 
-        res.add getAst(fieldPayload(fieldNameVar, fieldName, fieldVar,
-                                    fieldAccessor, body))
-
+        res.add getAst(fieldPayload(fieldNameVar, fieldName,
+                                    fieldVar, fieldAccessor,
+                                    body))
       return res
 
     macro enumAllSerializedFields*(typ: type T, body: untyped): untyped =
@@ -263,27 +280,22 @@ macro setSerializedFields*(T: typedesc, fields: varargs[untyped]): untyped =
         typ = getType(typ)
 
       for field in fields:
-        let
-          fieldName = newLit($field)
-          fieldNameVar = ident "fieldName"
-          FieldTypeSym = ident "FieldType"
+        let fieldName = newLit($field)
 
         # TODO replace with getAst once it's ready
-        template fieldPayload(fieldNameVar, fieldName,
-                              fieldTypeVar, typ, field,
-                              body) =
+        template fieldPayload(fieldNameValue, typ, field, body) =
           block:
-            const fieldNameVar {.used.} = fieldName
-            type fieldTypeVar {.used.} = type(default(typ).field)
+            const fieldName {.inject, used.} = fieldNameValue
+            const realFieldName {.inject, used.} = fieldNameValue
+
+            type FieldType {.inject, used.} = type(declval(typ).field)
 
             template fieldCaseDiscriminator: auto {.used.} = ""
             template fieldCaseBranches: auto {.used.} = nil
 
             body
 
-        res.add getAst(fieldPayload(fieldNameVar, fieldName,
-                                    FieldTypeSym, typ, field,
-                                    body))
+        res.add getAst(fieldPayload(fieldName, typ, field, body))
 
       return res
 
@@ -322,16 +334,16 @@ proc genCustomSerializationForField(Format, field,
     result.add quote do:
       type Reader = ReaderType(`Format`)
       proc readFieldIMPL*(F: type FieldTag[`RecordType`, `fieldName`, auto],
-                          `readerVar`: var Reader): `FieldType` =
+                          `readerSym`: var Reader): `FieldType` =
         `readBody`
 
   if writeBody != nil:
     result.add quote do:
       type Writer = WriterType(`Format`)
-      proc writeFieldIMPL*(`writerVar`: var Writer,
+      proc writeFieldIMPL*(`writerSym`: var Writer,
                            F: type FieldTag[`RecordType`, `fieldName`, auto],
-                           `valueVar`: auto,
-                           `holderVar`: `RecordType`) =
+                           `valueSym`: auto,
+                           `holderSym`: `RecordType`) =
         `writeBody`
 
 proc genCustomSerializationForType(Format, typ: NimNode,
@@ -341,13 +353,13 @@ proc genCustomSerializationForType(Format, typ: NimNode,
   if readBody != nil:
     result.add quote do:
       type Reader = ReaderType(`Format`)
-      proc readValue*(`readerVar`: var Reader, T: type `typ`): `typ` =
+      proc readValue*(`readerSym`: var Reader, T: type `typ`): `typ` =
         `readBody`
 
   if writeBody != nil:
     result.add quote do:
       type Writer = WriterType(`Format`)
-      proc writeValue*(`writerVar`: var Writer, `valueVar`: `typ`) =
+      proc writeValue*(`writerSym`: var Writer, `valueSym`: `typ`) =
         `writeBody`
 
 macro useCustomSerialization*(Format: typed, field: untyped, body: untyped): untyped =
