@@ -1,5 +1,7 @@
-when defined(serialization_tracing):
-  var tracingEnabled* = false
+const serialization_tracing {.strdefine.} = ""
+
+when serialization_tracing != "":
+  var tracingEnabled* = serialization_tracing in ["yes", "on", "1"]
 
   ## TODO
   ## Implement a tracing context object that will be
