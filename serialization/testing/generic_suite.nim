@@ -19,11 +19,19 @@ type
     sender*: string
     receiver*: string
 
-  DerivedFromRoot* = object of RootObj
+  BaseType* = object of RootObj
     a*: string
     b*: int
 
-  DerivedFromRootRef = ref DerivedFromRoot
+  BaseTypeRef* = ref BaseType
+
+  DerivedType* = object of BaseType
+    c*: int
+    d*: string
+
+  DerivedRefType* = ref object of BaseType
+    c*: int
+    d*: string
 
   RefTypeDerivedFromRoot* = ref object of RootObj
     a*: int
@@ -235,13 +243,17 @@ proc executeRoundtripTests*(Format: type) =
 
       block:
         let
-          a = DerivedFromRoot(a: "test", b: -1000)
-          b = DerivedFromRootRef(a: "another test", b: 2000)
+          a = BaseType(a: "test", b: -1000)
+          b = BaseTypeRef(a: "another test", b: 2000)
           c = RefTypeDerivedFromRoot(a: high(int), b: "")
+          d = DerivedType(a: "a field", b: 1000, c: 10, d: "d field")
+          e = DerivedRefType(a: "a field", b: -1000, c: 10, d: "")
 
         roundtrip a
         roundtrip b
         roundtrip c
+        roundtrip d
+        roundtrip e
 
     test "case objects":
       var
