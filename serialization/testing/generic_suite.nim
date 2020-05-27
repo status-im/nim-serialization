@@ -33,6 +33,9 @@ type
     c*: int
     d*: string
 
+  DerivedFromRefType* = ref object of DerivedRefType
+    e*: int
+
   RefTypeDerivedFromRoot* = ref object of RootObj
     a*: int
     b*: string
@@ -248,12 +251,14 @@ proc executeRoundtripTests*(Format: type) =
           c = RefTypeDerivedFromRoot(a: high(int), b: "")
           d = DerivedType(a: "a field", b: 1000, c: 10, d: "d field")
           e = DerivedRefType(a: "a field", b: -1000, c: 10, d: "")
+          f = DerivedFromRefType(a: "a field", b: -1000, c: 10, d: "", e: 12)
 
         roundtrip a
         roundtrip b
         roundtrip c
         roundtrip d
         roundtrip e
+        roundtrip f
 
     test "case objects":
       var
