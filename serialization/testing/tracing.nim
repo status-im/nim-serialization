@@ -1,6 +1,7 @@
 const serialization_tracing {.strdefine.} = ""
+const hasSerializationTracing* = serialization_tracing != ""
 
-when serialization_tracing != "":
+when hasSerializationTracing:
   var tracingEnabled* = serialization_tracing in ["yes", "on", "1"]
 
   ## TODO
