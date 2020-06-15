@@ -1,5 +1,6 @@
 import
-  stew/shims/macros, stew/objects
+  stew/shims/macros, stew/objects,
+  errors
 
 type
   FieldTag*[RecordType; fieldName: static string; FieldType] = distinct void
@@ -161,7 +162,8 @@ type
 
   FieldReader*[RecordType, Reader] = tuple[
     fieldName: string,
-    reader: proc (rec: var RecordType, reader: var Reader) {.gcsafe, nimcall.}
+    reader: proc (rec: var RecordType, reader: var Reader)
+                 {.gcsafe, nimcall, raises: [SerializationError, Defect].}
   ]
 
   FieldReadersTable*[RecordType, Reader] = openarray[FieldReader[RecordType, Reader]]
@@ -190,10 +192,11 @@ template writeFieldIMPL*[Writer](writer: var Writer,
 
 proc makeFieldReadersTable(RecordType, Reader: distinct type):
                            seq[FieldReader[RecordType, Reader]] =
-  mixin enumAllSerializedFields, readFieldIMPL
+  mixin enumAllSerializedFields, readFieldIMPL, handleReadException
 
   enumAllSerializedFields(RecordType):
-    proc readField(obj: var RecordType, reader: var Reader) {.gcsafe, nimcall.} =
+    proc readField(obj: var RecordType, reader: var Reader)
+                  {.gcsafe, nimcall, raises: [SerializationError, Defect].} =
       when RecordType is tuple:
         const i = fieldName.parseInt
       try:
@@ -207,8 +210,8 @@ proc makeFieldReadersTable(RecordType, Reader: distinct type):
           # leads to an incorrect return type being reported from
           # the `readFieldIMPL` function.
           field(obj, realFieldName) = FieldType readFieldIMPL(F, reader)
-      except SerializationError:
-        raise
+      except SerializationError as err:
+        raise err
       except CatchableError as err:
         reader.handleReadException(
           `RecordType`,
