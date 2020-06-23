@@ -1,4 +1,5 @@
 import
+  typetraits,
   stew/shims/macros, faststreams,
   serialization/[object_serialization, errors]
 
@@ -112,6 +113,17 @@ template saveFile*(Format: type, filename: string, value: auto, params: varargs[
   finally:
     close stream
 
+template borrowSerialization*(Alias: type) {.dirty.} =
+  bind distinctBase
+
+  proc writeValue*[Writer](writer: var Writer, value: Alias) =
+    mixin writeValue
+    writeValue(writer, distinctBase value)
+
+  proc readValue*[Reader](reader: var Reader, value: var Alias) =
+    mixin readValue
+    value = Alias reader.readValue(distinctBase Alias)
+
 template borrowSerialization*(Alias: distinct type,
                               OriginalType: distinct type) {.dirty.} =
 
@@ -122,6 +134,27 @@ template borrowSerialization*(Alias: distinct type,
   proc readValue*[Reader](reader: var Reader, value: var Alias) =
     mixin readValue
     value = Alias reader.readValue(OriginalType)
+
+template serializesAsBase*(SerializedType: distinct type,
+                           Format: distinct type) =
+  mixin ReaderType, WriterType
+
+  type Reader = ReaderType(Format)
+  type Writer = WriterType(Format)
+
+  template writeValue*(writer: var Writer, value: SerializedType) =
+    mixin writeValue
+    writeValue(writer, distinctBase value)
+
+  template readValue*(reader: var Reader, value: var SerializedType) =
+    mixin readValue
+    value = SerializedType reader.readValue(distinctBase SerializedType)
+
+macro serializesAsBaseIn*(SerializedType: type,
+                          Formats: varargs[untyped]) =
+  result = newStmtList()
+  for Fmt in Formats:
+    result.add newCall(bindSym"serializesAsBase", SerializedType, Fmt)
 
 template readValue*(stream: InputStream,
                     Format: type,
