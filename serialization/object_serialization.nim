@@ -102,12 +102,12 @@ macro enumAllSerializedFieldsImpl(T: type, body: untyped): untyped =
     let
       fieldType = field.typ
       fieldIdent = field.name
-      realFieldName = newLit($fieldIdent)
+      realFieldName = newLit($fieldIdent.skipPragma)
       serializedFieldName = field.readPragma("serializedFieldName")
       fieldName = if serializedFieldName == nil: realFieldName
                   else: serializedFieldName
       discriminator = newLit(if field.caseField == nil: ""
-                           else: $field.caseField[0])
+                           else: $field.caseField[0].skipPragma)
       branches = field.caseBranch
       fieldIndex = newLit(i)
 
