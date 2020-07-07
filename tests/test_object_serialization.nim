@@ -1,6 +1,6 @@
 import
   typetraits, unittest,
-  stew/shims/macros,
+  stew/shims/macros, stew/objects,
   ../serialization/object_serialization,
   ../serialization/testing/generic_suite
 

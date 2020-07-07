@@ -150,7 +150,7 @@ template enumAllSerializedFields*(T: type, body): untyped =
     enumAllSerializedFieldsImpl(T, body)
 
 func isCaseObject*(T: type): bool {.compileTime.} =
-  genExpr:
+  genSimpleExpr:
     enumAllSerializedFields(T):
       if fieldCaseDiscriminator != "":
         return newLit(true)
