@@ -39,7 +39,7 @@ template enumInstanceSerializedFields*(obj: auto,
   ## will be read first and the iteration will continue depending on the
   ## value being deserialized.
   ##
-  type ObjType = type(obj)
+  type ObjType {.used.} = type(obj)
 
   for fieldName, fieldVar in fieldPairs(obj):
     when not hasCustomPragmaFixed(ObjType, fieldName, dontSerialize):
