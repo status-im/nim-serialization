@@ -5,7 +5,7 @@ nim-serialization
 [![Build status](https://ci.appveyor.com/api/projects/status/muejuk735c11brjd/branch/master?svg=true)](https://ci.appveyor.com/project/nimbus/nim-serialization/branch/master)
 [![License: Apache](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
+![Github action](https://github.com/status-im/nim-serialization/workflows/nim-serialization%20CI/badge.svg)
 
 ## Introduction
 
@@ -109,7 +109,7 @@ type
 serializedFields Foo:
   a
   c [-JSON]
-  # The `d` field is renamed to `z`: 
+  # The `d` field is renamed to `z`:
   d -> z
 ```
 
