@@ -101,6 +101,7 @@ macro enumAllSerializedFieldsImpl(T: type, body: untyped): untyped =
 
     let
       fieldType = field.typ
+      FieldTypeSym = getTypeInst(fieldType)
       fieldIdent = field.name
       realFieldName = newLit($fieldIdent.skipPragma)
       serializedFieldName = field.readPragma("serializedFieldName")
@@ -132,14 +133,15 @@ macro enumAllSerializedFieldsImpl(T: type, body: untyped): untyped =
     result.add quote do:
       block:
         when compiles(type(`field`)):
-          `fieldNameDefs`
-
           type FieldType {.inject, used.} = type(`field`)
 
-          template fieldCaseDiscriminator: auto {.used.} = `discriminator`
-          template fieldCaseBranches: auto {.used.} = `branches`
+          when FieldType is `FieldTypeSym`:
+            `fieldNameDefs`
 
-          `body`
+            template fieldCaseDiscriminator: auto {.used.} = `discriminator`
+            template fieldCaseBranches: auto {.used.} = `branches`
+
+            `body`
 
     i += 1
 
