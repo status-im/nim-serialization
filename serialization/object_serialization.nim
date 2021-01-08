@@ -49,6 +49,118 @@ template enumInstanceSerializedFields*(obj: auto,
         const fieldNameVar = fieldName
       body
 
+proc replaceNodes(ast: NimNode, replacements: NimNode, to_replace: NimNode): NimNode =
+  # Args:
+  #   - The full syntax tree
+  #   - an array of replacement value
+  #   - an array of identifiers to replace
+  proc inspect(node: NimNode): NimNode =
+    case node.kind:
+    of {nnkIdent, nnkSym}:
+      for i, c in to_replace:
+        if node.eqIdent($c):
+          return replacements[i]
+      return node
+    of nnkEmpty: return node
+    of nnkLiterals: return node
+    else:
+      var rTree = node.kind.newTree()
+      for child in node:
+        rTree.add inspect(child)
+      return rTree
+
+  if replacements == nil:
+    return ast
+
+  result = inspect(ast)
+
+proc collectImpl(T: NimNode{nkSym}): tuple[isSymbol: bool, impl: NimNode, instantiatedFields: seq[NimNode]] =
+  ## This takes an instantiated type, potentially with generics.
+  ## And generates a sequence of fields, in the same order as `recordField`
+  ## and properly instantiate their generics.
+  ##
+  ## For example for the type
+  ##
+  ## BeaconBlockBody*[Trust] = object
+  ##   when Trust is SigVerified|Trusted:
+  ##     randao_reveal*: TrustedSig
+  ##   else:
+  ##     randao_reveal*: ValidatorSig
+  ##   eth1_data*: Eth1Data
+  ##   graffiti*: GraffitiBytes
+  ##
+  ##   # Operations
+  ##   proposer_slashings*: List[ProposerSlashing, Limit MAX_PROPOSER_SLASHINGS]
+  ##   attester_slashings*: List[AttesterSlashing[Trust], Limit MAX_ATTESTER_SLASHINGS]
+  ##   attestations*: List[Attestation[Trust], Limit MAX_ATTESTATIONS]
+  ##   deposits*: List[Deposit, Limit MAX_DEPOSITS]
+  ##   voluntary_exits*: List[SignedVoluntaryExit, Limit MAX_VOLUNTARY_EXITS]  # TODO: trust system?
+  ##
+  ## when doing getTypeImpl(BeaconBlockBody[Unchecked])
+  ## the "Trust" generics is not replaced by Unchecked,
+  ## meaning `recordField` which uses getTypeImpl
+  ## will not be able to reinstantiate generics.
+  ##
+  ## TODO: this logic should directly be done in recordField
+
+  # Return the type implementation (uninstantiated)
+  let typeAst = getType(T)[1]
+  result.isSymbol = not typeAst.isTuple
+  if not result.isSymbol:
+    result.impl = typeAst
+  else:
+    result.impl = getImpl(typeAst)
+
+  # TODO this only support MyType[T, U, V]
+  #      but not MyType[T: SomeInteger, U, V]
+  let implGenerics = result.impl[1]
+
+  # Now we need to workaround https://github.com/nim-lang/Nim/issues/16639
+  # Note that we need both getImpl to collect the implGenerics
+  # and getTypeImpl to know where to replace them
+  let impl = getTypeImpl(typeAst)
+
+  # Return the field types (instantiated with generics if any)
+  let typeInst = getTypeInst(T)[1]
+  echo "typeInst: ", typeInst.treerepr
+
+  var instGenerics: NimNode
+
+  # collect generics and static parameter values
+  if typeInst.kind == nnkBracketExpr:
+    instGenerics = nnkBracket.newTree()
+    for i in 1 ..< typeInst.len:
+      instGenerics.add typeInst[i]
+
+  # Go over the type implementation and instantiate the fields
+  impl.expectKind({nnkObjectTy, nnkRefTy})
+  let records = if impl.kind == nnkObjectTy:
+                  impl[2]
+                else:
+                  impl[2][2]
+
+  records.expectKind nnkRecList
+
+  # Replace the implementation generics by the instantiated generics
+  for fieldDef in records:
+    case fieldDef.kind
+    of nnkIdentDefs:
+      result.instantiatedFields.add replaceNodes(fieldDef[1], instGenerics, implGenerics)
+    of nnkRecWhen:
+      echo "when: ", fieldDef.treerepr
+      for whenBranch in fieldDef:
+        if whenBranch.kind == nnkElifBranch:
+          for i in 1 ..< whenBranch.len:
+            whenBranch[i].expectKind(nnkIdentDefs)
+            result.instantiatedFields.add replaceNodes(whenBranch[i][1], instGenerics, implGenerics)
+        else:
+          whenBranch.expectkind(nnkElse)
+          for i in 0 ..< whenBranch.len:
+            whenBranch[i].expectKind(nnkIdentDefs)
+            result.instantiatedFields.add replaceNodes(whenBranch[i][1], instGenerics, implGenerics)
+    else:
+      error "Unreachable, received the following field record: " & fieldDef.repr
+
 macro enumAllSerializedFieldsImpl(T: type, body: untyped): untyped =
   ## Expands a block over all fields of a type
   ##
@@ -84,15 +196,13 @@ macro enumAllSerializedFieldsImpl(T: type, body: untyped): untyped =
   ## a different order. Fields marked with the `dontSerialize` pragma
   ## are skipped.
   ##
-  var typeAst = getType(T)[1]
-  var typeImpl: NimNode
-  let isSymbol = not typeAst.isTuple
-
-  if not isSymbol:
-    typeImpl = typeAst
-  else:
-    typeImpl = getImpl(typeAst)
   result = newStmtList()
+  let (isSymbol, typeImpl, instantiatedFieldsTypes) = collectImpl(T)
+
+  echo "------------------------"
+  echo "typeImpl: ", typeImpl.treerepr
+  echo "instFields: ", instantiatedFieldsTypes.repr()
+  echo "------------------------"
 
   var i = 0
   for field in recordFields(typeImpl):
@@ -100,8 +210,7 @@ macro enumAllSerializedFieldsImpl(T: type, body: untyped): untyped =
       continue
 
     let
-      fieldType = field.typ
-      FieldTypeSym = getTypeInst(fieldType)
+      FieldTypeSym = instantiatedFieldsTypes[i]
       fieldIdent = field.name
       realFieldName = newLit($fieldIdent.skipPragma)
       serializedFieldName = field.readPragma("serializedFieldName")
@@ -383,4 +492,3 @@ macro useCustomSerialization*(Format: typed, field: untyped, body: untyped): unt
 
   when defined(debugUseCustomSerialization):
     echo result.repr
-
