@@ -131,15 +131,14 @@ macro enumAllSerializedFieldsImpl(T: type, body: untyped): untyped =
 
     result.add quote do:
       block:
-        when compiles(type(`field`)):
-          `fieldNameDefs`
+        `fieldNameDefs`
 
-          type FieldType {.inject, used.} = type(`field`)
+        type FieldType {.inject, used.} = type(`field`)
 
-          template fieldCaseDiscriminator: auto {.used.} = `discriminator`
-          template fieldCaseBranches: auto {.used.} = `branches`
+        template fieldCaseDiscriminator: auto {.used.} = `discriminator`
+        template fieldCaseBranches: auto {.used.} = `branches`
 
-          `body`
+        `body`
 
     i += 1
 
