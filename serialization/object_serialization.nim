@@ -224,9 +224,15 @@ proc makeFieldReadersTable(RecordType, Reader: distinct type):
 proc fieldReadersTable*(RecordType, Reader: distinct type):
                         ptr seq[FieldReader[RecordType, Reader]] =
   mixin readValue
-  var tbl {.global.} = makeFieldReadersTable(RecordType, Reader)
-  {.gcsafe.}:
-    return addr(tbl)
+
+  # careful: https://github.com/nim-lang/Nim/issues/17085
+  # TODO why is this even here? one could just return the function pointer
+  #      to the field reader directly instead of going through this seq etc
+  var tbl {.threadvar.}: ref seq[FieldReader[RecordType, Reader]]
+  if tbl == nil:
+    tbl = new typeof(tbl)
+    tbl[] = makeFieldReadersTable(RecordType, Reader)
+  return addr(tbl[])
 
 proc findFieldReader*(fieldsTable: FieldReadersTable,
                       fieldName: string,
