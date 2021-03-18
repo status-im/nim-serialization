@@ -14,8 +14,8 @@ template serializationFormatImpl(Name: untyped,
   # mechanism of Nim will try to expand the `mimeType` param in the position
   # of the `mimeType` template name which will result in error.
   type Name* = object
-  template ReaderType*(T: type Name): type = Reader
-  template WriterType*(T: type Name): type = Writer
+  template ReaderType*(T: type Name, F: distinct type = DefaultFlavor): type = Reader[F]
+  template WriterType*(T: type Name, F: distinct type = DefaultFlavor): type = Writer[F]
   template PreferedOutputType*(T: type Name): type = PreferedOutput
   template mimeType*(T: type Name): string = mimeTypeName
 
@@ -23,6 +23,13 @@ template serializationFormat*(Name: untyped,
                               Reader, Writer, PreferedOutput: distinct type,
                               mimeType: static string = "") =
   serializationFormatImpl(Name, Reader, Writer, PreferedOutput, mimeType)
+
+template createFlavor*(ModifiedFormat, FlavorName: untyped) =
+  type FlavorName* = object
+  template ReaderType*(T: type FlavorName): type = ReaderType(ModifiedFormat, FlavorName)
+  template WriterType*(T: type FlavorName): type = WriterType(ModifiedFormat, FlavorName)
+  template PreferedOutputType*(T: type FlavorName): type = PreferedOutputType(ModifiedFormat)
+  template mimeType*(T: type FlavorName): string = mimeType(ModifiedFormat)
 
 template encode*(Format: type, value: auto, params: varargs[untyped]): auto =
   mixin init, WriterType, writeValue, PreferedOutputType
@@ -33,7 +40,8 @@ template encode*(Format: type, value: auto, params: varargs[untyped]): auto =
     # faststreams may be writing to a file or a network device.
     try:
       var s = memoryOutput()
-      var writer = unpackArgs(init, [WriterType(Format), s, params])
+      type Writer = WriterType(Format)
+      var writer = unpackArgs(init, [Writer, s, params])
       writeValue writer, value
       s.getOutput PreferedOutputType(Format)
     except IOError:
@@ -108,7 +116,8 @@ template saveFile*(Format: type, filename: string, value: auto, params: varargs[
 
   var stream = fileOutput(filename)
   try:
-    var writer = unpackArgs(init, [WriterType(Format), stream, params])
+    type Writer = WriterType(Format)
+    var writer = unpackArgs(init, [Writer, stream, params])
     writer.writeValue(value)
   finally:
     close stream
@@ -169,6 +178,7 @@ template writeValue*(stream: OutputStream,
                      value: auto,
                      params: varargs[untyped]) =
   mixin WriterType, init, writeValue
-  var writer = unpackArgs(init, [WriterType(Format), stream])
+  type Writer = WriterType(Format)
+  var writer = unpackArgs(init, [Writer, stream])
   writeValue writer, value
 

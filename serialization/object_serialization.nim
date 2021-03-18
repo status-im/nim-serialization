@@ -3,6 +3,7 @@ import
   errors
 
 type
+  DefaultFlavor* = object
   FieldTag*[RecordType; fieldName: static string; FieldType] = distinct void
 
 let
