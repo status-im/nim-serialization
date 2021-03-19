@@ -191,12 +191,12 @@ template writeFieldIMPL*[Writer](writer: var Writer,
   mixin writeValue
   writer.writeValue(fieldVal)
 
-proc makeFieldReadersTable(RecordType, Reader: distinct type):
-                           seq[FieldReader[RecordType, Reader]] =
+proc makeFieldReadersTable(RecordType, ReaderType: distinct type):
+                           seq[FieldReader[RecordType, ReaderType]] =
   mixin enumAllSerializedFields, readFieldIMPL, handleReadException
 
   enumAllSerializedFields(RecordType):
-    proc readField(obj: var RecordType, reader: var Reader)
+    proc readField(obj: var RecordType, reader: var ReaderType)
                   {.gcsafe, nimcall, raises: [SerializationError, Defect].} =
       when RecordType is tuple:
         const i = fieldName.parseInt
@@ -222,17 +222,17 @@ proc makeFieldReadersTable(RecordType, Reader: distinct type):
 
     result.add((fieldName, readField))
 
-proc fieldReadersTable*(RecordType, Reader: distinct type):
-                        ptr seq[FieldReader[RecordType, Reader]] =
+proc fieldReadersTable*(RecordType, ReaderType: distinct type):
+                        ptr seq[FieldReader[RecordType, ReaderType]] =
   mixin readValue
 
   # careful: https://github.com/nim-lang/Nim/issues/17085
   # TODO why is this even here? one could just return the function pointer
   #      to the field reader directly instead of going through this seq etc
-  var tbl {.threadvar.}: ref seq[FieldReader[RecordType, Reader]]
+  var tbl {.threadvar.}: ref seq[FieldReader[RecordType, ReaderType]]
   if tbl == nil:
     tbl = new typeof(tbl)
-    tbl[] = makeFieldReadersTable(RecordType, Reader)
+    tbl[] = makeFieldReadersTable(RecordType, ReaderType)
   return addr(tbl[])
 
 proc findFieldReader*(fieldsTable: FieldReadersTable,
@@ -342,16 +342,16 @@ proc genCustomSerializationForField(Format, field,
 
   if readBody != nil:
     result.add quote do:
-      type Reader = ReaderType(`Format`)
+      type ReaderType = Reader(`Format`)
       proc readFieldIMPL*(F: type FieldTag[`RecordType`, `fieldName`, auto],
-                          `readerSym`: var Reader): `FieldType`
+                          `readerSym`: var ReaderType): `FieldType`
                          {.raises: [IOError, SerializationError, Defect].} =
         `readBody`
 
   if writeBody != nil:
     result.add quote do:
-      type Writer = WriterType(`Format`)
-      proc writeFieldIMPL*(`writerSym`: var Writer,
+      type WriterType = Writer(`Format`)
+      proc writeFieldIMPL*(`writerSym`: var WriterType,
                            F: type FieldTag[`RecordType`, `fieldName`, auto],
                            `valueSym`: auto,
                            `holderSym`: `RecordType`)
@@ -364,15 +364,15 @@ proc genCustomSerializationForType(Format, typ: NimNode,
 
   if readBody != nil:
     result.add quote do:
-      type Reader = ReaderType(`Format`)
-      proc readValue*(`readerSym`: var Reader, T: type `typ`): `typ`
+      type ReaderType = Reader(`Format`)
+      proc readValue*(`readerSym`: var ReaderType, T: type `typ`): `typ`
                      {.raises: [IOError, SerializationError, Defect].} =
         `readBody`
 
   if writeBody != nil:
     result.add quote do:
-      type Writer = WriterType(`Format`)
-      proc writeValue*(`writerSym`: var Writer, `valueSym`: `typ`)
+      type WriterType = Writer(`Format`)
+      proc writeValue*(`writerSym`: var WriterType, `valueSym`: `typ`)
                       {.raises: [IOError, SerializationError, Defect].} =
         `writeBody`
 

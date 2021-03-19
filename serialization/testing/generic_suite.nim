@@ -317,14 +317,14 @@ proc executeRoundtripTests*(Format: type) =
       roundtrip namedT
 
 proc executeReaderWriterTests*(Format: type) =
-  mixin init, ReaderType, WriterType
+  mixin init, Reader, Writer
 
   type
-    Reader = ReaderType Format
+    ReaderType = Reader Format
 
   suite(typetraits.name(Format) & " read/write tests"):
     test "Low-level field reader test":
-      let barFields = fieldReadersTable(Bar, Reader)
+      let barFields = fieldReadersTable(Bar, ReaderType)
       var idx = 0
 
       var fieldReader = findFieldReader(barFields[], "b", idx)
@@ -336,7 +336,7 @@ proc executeReaderWriterTests*(Format: type) =
 
       var bytes = Format.encode("test")
       var stream = unsafeMemoryInput(bytes)
-      var reader = Reader.init(stream)
+      var reader = ReaderType.init(stream)
 
       var bar: Bar
       fieldReader(bar, reader)
@@ -345,7 +345,7 @@ proc executeReaderWriterTests*(Format: type) =
 
     test "Ignored fields should not be included in the field readers table":
       var pos = 0
-      let bazFields = fieldReadersTable(Baz, Reader)
+      let bazFields = fieldReadersTable(Baz, ReaderType)
       check:
         len(bazFields[]) == 2
         findFieldReader(bazFields[], "f", pos) != nil

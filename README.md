@@ -33,11 +33,11 @@ serializationFormat Json,                          # This is the name of the for
                     Reader = JsonReader,           # The associated Reader type.
                     Writer = JsonWriter,           # The associated Writer type.
 
-                    PreferedOutput = string,       # APIs such as `Json.encode` will return this type.
+                    PreferredOutput = string,      # APIs such as `Json.encode` will return this type.
                                                    # The type must support the following operations:
                                                    #   proc initWithCapacity(_: type T, n: int)
                                                    #   proc add(v: var T, bytes: openarray[byte])
-                                                   # By default, the PreferedOutput is `seq[byte]`.
+                                                   # By default, the PreferredOutput is `seq[byte]`.
 
                     mimeType = "application/json", # Mime type associated with the format (Optional).
                     fileExt = "json"               # File extension associated with the format (Optional).
@@ -48,7 +48,7 @@ serializationFormat Json,                          # This is the name of the for
 Most of the time, you'll be using the following high-level APIs when encoding
 and decoding values:
 
-#### `Format.encode(value: auto, params: varargs): Format.PreferedOutput`
+#### `Format.encode(value: auto, params: varargs): Format.PreferredOutput`
 
 Encodes a value in the specified format returning the preferred output type
 for the format (usually `string` or `seq[byte]`). All extra params will be
