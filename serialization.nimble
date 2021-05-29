@@ -12,5 +12,6 @@ requires "nim >= 1.2.0",
          "stew"
 
 task test, "Run all tests":
-  exec "nim c -r --threads:off tests/test_all"
-  exec "nim c -r --threads:on tests/test_all"
+  let common_args = "c -r -f --hints:off --skipParentCfg"
+  exec "nim " & common_args & " --threads:off tests/test_all"
+  exec "nim " & common_args & " --threads:on tests/test_all"
