@@ -31,7 +31,7 @@ template enumInstanceSerializedFields*(obj: auto,
   ## will refer to the field value.
   ##
   ## The order of visited fields matches the order of the fields in
-  ## the object definition unless `serialziedFields` is used to specify
+  ## the object definition unless `setSerializedFields` is used to specify
   ## a different order. Fields marked with the `dontSerialize` pragma
   ## are skipped.
   ##
@@ -81,7 +81,7 @@ macro enumAllSerializedFieldsImpl(T: type, body: untyped): untyped =
   ##    case object discriminator which make this field accessible.
   ##
   ## The order of visited fields matches the order of the fields in
-  ## the object definition unless `serialziedFields` is used to specify
+  ## the object definition unless `setSerializedFields` is used to specify
   ## a different order. Fields marked with the `dontSerialize` pragma
   ## are skipped.
   ##

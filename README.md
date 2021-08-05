@@ -26,21 +26,14 @@ A serialization format is implemented through defining a `Reader` and `Writer`
 type for the format and then by providing the following type declaration:
 
 ```nim
-serializationFormat Json,                          # This is the name of the format.
-                                                   # Most APIs provided by the library will accept
-                                                   # this identifier as a required parameter.
+serializationFormat Json,                         # This is the name of the format.
+                                                  # Most APIs provided by the library will accept
+                                                  # this identifier as a required parameter.
+                    mimeType = "application/json" # Mime type associated with the format (Optional).
 
-                    Reader = JsonReader,           # The associated Reader type.
-                    Writer = JsonWriter,           # The associated Writer type.
-
-                    PreferredOutput = string,      # APIs such as `Json.encode` will return this type.
-                                                   # The type must support the following operations:
-                                                   #   proc initWithCapacity(_: type T, n: int)
-                                                   #   proc add(v: var T, bytes: openArray[byte])
-                                                   # By default, the PreferredOutput is `seq[byte]`.
-
-                    mimeType = "application/json", # Mime type associated with the format (Optional).
-                    fileExt = "json"               # File extension associated with the format (Optional).
+Json.setReader JsonReader                         # The associated Reader type.
+Json.setWriter JsonWriter,                        # The associated Writer type.
+               PreferredOutput = string           # APIs such as `Json.encode` will return this type.
 ```
 
 ## Common API
@@ -66,11 +59,11 @@ Decodes and returns a value of the specified `RecordType`. All params will
 be forwarded without modification to the used `Reader` type. A Format-specific
 descendant of `SerializationError` may be thrown in case of error.
 
-#### `Format.saveFile(filename: string, params: varargs)`
+#### `Format.saveFile(filename: string, value: auto, params: varargs)`
 
 Similar to `encode`, but saves the result in a file.
 
-#### `Format.loadFile`
+#### `Format.loadFile(filename: string, RecordType: type, params: varargs): RecordType`
 
 Similar to `decode`, but treats the contents of a file as an input.
 
@@ -81,53 +74,40 @@ particular reader.
 
 #### `writer.writeValue(value: auto)`
 
-Encodes a single value and writes it to the output stream of a paticular writer.
+Encodes a single value and writes it to the output stream of a particular writer.
 
 ### Custom serialization of user-defined types
 
 By default, record types will have all of their fields serialized. You can
-alter this behavior by attaching the `dontSerialize(varargs[Format])` pragma
-to black-list fields or the `serialize(varargs[Format])` to white-list fields.
-If no formats are listed in the pragmas above, they will affect all formats.
+alter this behavior by attaching the `dontSerialize` pragma to exclude fields.
 The pragma `serializedFieldName(name: string)` can be used to modify the name
 of the field in formats such as Json and XML.
 
 Alternatively, if you are not able to modify the definition of a particular
-Nim type, you can use the `serializedFields` macro to achive the same in less
-instrusive way.
+Nim type, you can use the `setSerializedFields` macro to achieve the same
+in a less intrusive way.
 
-The following two definitions can be consired equivalent:
+The following two definitions can be considered equivalent:
 
 ```nim
 type
   Foo = object
     a: string
     b {.dontSerialize.}: int
-    c {.dontSerialize(JSON).}: float
-    d {.serializedFieldName("z").}: int
 
-serializedFields Foo:
+setSerializedFields Foo:
   a
-  c [-JSON]
-  # The `d` field is renamed to `z`:
-  d -> z
 ```
 
-As you can see, `serializedFields` accepts a block where each serialzied
-field is listed on a separate line. The `->` operator is used to indicate
-field renames, while the optional `[]` modifiers can be used to while-list
-or black-list specific formats where the field should appear (using `+`
-and `-` respectively).
+As you can see, `setSerializedFields` accepts a block where each serialized
+field is listed on a separate line.
 
 #### `customSerialization(RecordType: type, spec)`
-#### `Format.customSerialization(RecordType, spec)`
-#### `customSerialization(RecordType.field, spec)`
-#### `Format.customSerialization(Record.field, spec)`
 
 
 
 
-#### `Record.totalSerializedFields(Format)`
+#### `totalSerializedFields(RecordType: type)`
 
 Returns the number of serialized fields in the specified format.
 
