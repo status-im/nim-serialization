@@ -1,10 +1,10 @@
 import
-  typetraits,
-  stew/shims/macros, faststreams,
-  serialization/[object_serialization, errors, formats]
+  std/typetraits,
+  stew/shims/macros, faststreams/[inputs, outputs],
+  ./serialization/[object_serialization, errors, formats]
 
 export
-  faststreams, object_serialization, errors, formats
+  inputs, outputs, object_serialization, errors, formats
 
 template encode*(Format: type, value: auto, params: varargs[untyped]): auto =
   mixin init, Writer, writeValue, PreferredOutputType

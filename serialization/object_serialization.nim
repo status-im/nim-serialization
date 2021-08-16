@@ -1,6 +1,6 @@
 import
   stew/shims/macros, stew/objects,
-  errors
+  ./errors
 
 type
   DefaultFlavor* = object

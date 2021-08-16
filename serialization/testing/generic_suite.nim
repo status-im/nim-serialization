@@ -1,5 +1,6 @@
 import
-  unittest, times, typetraits, random, strutils, options, sets, tables,
+  std/[times, typetraits, random, strutils, options, sets, tables],
+  unittest2,
   faststreams/inputs,
   ../../serialization, ../object_serialization
 
