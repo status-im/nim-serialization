@@ -167,7 +167,7 @@ type
                  {.gcsafe, nimcall, raises: [SerializationError, Defect].}
   ]
 
-  FieldReadersTable*[RecordType, Reader] = openarray[FieldReader[RecordType, Reader]]
+  FieldReadersTable*[RecordType, Reader] = openArray[FieldReader[RecordType, Reader]]
 
 proc totalSerializedFieldsImpl(T: type): int =
   mixin enumAllSerializedFields
