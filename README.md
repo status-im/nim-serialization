@@ -36,7 +36,7 @@ serializationFormat Json,                          # This is the name of the for
                     PreferredOutput = string,      # APIs such as `Json.encode` will return this type.
                                                    # The type must support the following operations:
                                                    #   proc initWithCapacity(_: type T, n: int)
-                                                   #   proc add(v: var T, bytes: openarray[byte])
+                                                   #   proc add(v: var T, bytes: openArray[byte])
                                                    # By default, the PreferredOutput is `seq[byte]`.
 
                     mimeType = "application/json", # Mime type associated with the format (Optional).
@@ -60,7 +60,7 @@ Example:
 assert Json.encode(@[1, 2, 3], pretty = false) == "[1, 2, 3]"
 ```
 
-#### `Format.decode(input: openarray[byte]|string, RecordType: type, params: varargs): RecordType`
+#### `Format.decode(input: openArray[byte]|string, RecordType: type, params: varargs): RecordType`
 
 Decodes and returns a value of the specified `RecordType`. All params will
 be forwarded without modification to the used `Reader` type. A Format-specific
