@@ -13,6 +13,6 @@ requires "nim >= 1.2.0",
          "stew"
 
 task test, "Run all tests":
-  let common_args = "c -r -f --hints:off --skipParentCfg --styleCheck:usages --styleCheck:error"
+  let common_args = "c -r -f --hints:off --skipParentCfg --styleCheck:usages --styleCheck:error " & getEnv("NIMFLAGS")
   exec "nim " & common_args & " --threads:off tests/test_all"
   exec "nim " & common_args & " --threads:on tests/test_all"
