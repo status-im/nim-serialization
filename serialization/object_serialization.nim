@@ -180,7 +180,7 @@ macro customSerialization*(field: untyped, definition): untyped =
   discard
 
 template GetFieldType(FT: type FieldTag): type =
-  typeof(field(cast[ptr FT.RecordType](nil)[], FT.fieldName))
+  typeof field(declval(FT.RecordType), FT.fieldName)
 
 template readFieldIMPL[Reader](field: type FieldTag,
                                reader: var Reader): untyped =
