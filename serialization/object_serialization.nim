@@ -1,10 +1,10 @@
 import
   stew/shims/macros, stew/objects,
-  errors
+  ./errors
 
 type
   DefaultFlavor* = object
-  FieldTag*[RecordType; fieldName: static string; FieldType] = distinct void
+  FieldTag*[RecordType: object; fieldName: static string] = distinct void
 
 let
   # Identifiers affecting the public interface of the library:
@@ -167,7 +167,7 @@ type
                  {.gcsafe, nimcall, raises: [SerializationError, Defect].}
   ]
 
-  FieldReadersTable*[RecordType, Reader] = openarray[FieldReader[RecordType, Reader]]
+  FieldReadersTable*[RecordType, Reader] = openArray[FieldReader[RecordType, Reader]]
 
 proc totalSerializedFieldsImpl(T: type): int =
   mixin enumAllSerializedFields
@@ -179,17 +179,27 @@ template totalSerializedFields*(T: type): int =
 macro customSerialization*(field: untyped, definition): untyped =
   discard
 
+template GetFieldType(FT: type FieldTag): type =
+  typeof(field(cast[ptr FT.RecordType](nil)[], FT.fieldName))
+
 template readFieldIMPL[Reader](field: type FieldTag,
                                reader: var Reader): untyped =
   mixin readValue
-  reader.readValue(field.FieldType)
+  {.gcsafe.}: # needed by Nim-1.6
+    reader.readValue GetFieldType(field)
+
+template readFieldIMPL[Reader](field: type FieldTag,
+                               reader: var Reader): untyped =
+  mixin readValue
+  {.gcsafe.}: # needed by Nim-1.6
+    reader.readValue GetFieldType(field)
 
 template writeFieldIMPL*[Writer](writer: var Writer,
                                  fieldTag: type FieldTag,
                                  fieldVal: auto,
                                  holderObj: auto) =
   mixin writeValue
-  writer.writeValue(fieldVal)
+  writeValue(writer, fieldVal)
 
 proc makeFieldReadersTable(RecordType, ReaderType: distinct type):
                            seq[FieldReader[RecordType, ReaderType]] =
@@ -200,11 +210,12 @@ proc makeFieldReadersTable(RecordType, ReaderType: distinct type):
                   {.gcsafe, nimcall, raises: [SerializationError, Defect].} =
       when RecordType is tuple:
         const i = fieldName.parseInt
+
       try:
-        type F = FieldTag[RecordType, realFieldName, type(FieldType)]
         when RecordType is tuple:
-          obj[i] = readFieldIMPL(F, reader)
+          reader.readValue obj[i]
         else:
+          type F = FieldTag[RecordType, realFieldName]
           # TODO: The `FieldType` coercion below is required to deal
           # with a nim bug caused by the distinct `ssz.List` type.
           # It seems to break the generics cache mechanism, which
@@ -343,7 +354,7 @@ proc genCustomSerializationForField(Format, field,
   if readBody != nil:
     result.add quote do:
       type ReaderType = Reader(`Format`)
-      proc readFieldIMPL*(F: type FieldTag[`RecordType`, `fieldName`, auto],
+      proc readFieldIMPL*(F: type FieldTag[`RecordType`, `fieldName`],
                           `readerSym`: var ReaderType): `FieldType`
                          {.raises: [IOError, SerializationError, Defect].} =
         `readBody`
@@ -352,10 +363,10 @@ proc genCustomSerializationForField(Format, field,
     result.add quote do:
       type WriterType = Writer(`Format`)
       proc writeFieldIMPL*(`writerSym`: var WriterType,
-                           F: type FieldTag[`RecordType`, `fieldName`, auto],
+                           F: type FieldTag[`RecordType`, `fieldName`],
                            `valueSym`: auto,
                            `holderSym`: `RecordType`)
-                          {.raises: [IOError, SerializationError, Defect].} =
+                          {.raises: [IOError, Defect].} =
         `writeBody`
 
 proc genCustomSerializationForType(Format, typ: NimNode,
@@ -373,7 +384,7 @@ proc genCustomSerializationForType(Format, typ: NimNode,
     result.add quote do:
       type WriterType = Writer(`Format`)
       proc writeValue*(`writerSym`: var WriterType, `valueSym`: `typ`)
-                      {.raises: [IOError, SerializationError, Defect].} =
+                      {.raises: [IOError, Defect].} =
         `writeBody`
 
 macro useCustomSerialization*(Format: typed, field: untyped, body: untyped): untyped =

@@ -5,5 +5,5 @@ type
 
 method formatMsg*(err: ref SerializationError, filename: string): string
                  {.gcsafe, base, raises: [Defect].} =
-  "Serialisation error while processing " & filename
+  "Serialisation error while processing " & filename & ":" & err.msg
 

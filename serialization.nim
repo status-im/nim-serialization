@@ -1,10 +1,10 @@
 import
-  typetraits,
-  stew/shims/macros, faststreams,
-  serialization/[object_serialization, errors, formats]
+  std/typetraits,
+  stew/shims/macros, faststreams/[inputs, outputs],
+  ./serialization/[object_serialization, errors, formats]
 
 export
-  faststreams, object_serialization, errors, formats
+  inputs, outputs, object_serialization, errors, formats
 
 template encode*(Format: type, value: auto, params: varargs[untyped]): auto =
   mixin init, Writer, writeValue, PreferredOutputType
@@ -34,7 +34,7 @@ template decode*(Format: distinct type,
                  RecordType: distinct type,
                  params: varargs[untyped]): auto =
   # TODO, this is dusplicated only due to a Nim bug:
-  # If `input` was `string|openarray[byte]`, it won't match `seq[byte]`
+  # If `input` was `string|openArray[byte]`, it won't match `seq[byte]`
   mixin init, Reader
   {.noSideEffect.}:
     # We assume that there are no side-effects here, because we are
@@ -50,11 +50,11 @@ template decode*(Format: distinct type,
       raise (ref Defect)() # memory inputs cannot raise an IOError
 
 template decode*(Format: distinct type,
-                 input: openarray[byte],
+                 input: openArray[byte],
                  RecordType: distinct type,
                  params: varargs[untyped]): auto =
   # TODO, this is dusplicated only due to a Nim bug:
-  # If `input` was `string|openarray[byte]`, it won't match `seq[byte]`
+  # If `input` was `string|openArray[byte]`, it won't match `seq[byte]`
   mixin init, Reader
   {.noSideEffect.}:
     # We assume that there are no side-effects here, because we are

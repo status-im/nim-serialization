@@ -1,8 +1,10 @@
 import
-  typetraits, unittest,
+  typetraits, unittest2,
   stew/shims/macros, stew/objects,
   ../serialization/object_serialization,
   ../serialization/testing/generic_suite
+
+{.used.}
 
 suite "object serialization":
   setup:

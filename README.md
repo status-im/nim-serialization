@@ -53,7 +53,7 @@ Example:
 assert Json.encode(@[1, 2, 3], pretty = false) == "[1, 2, 3]"
 ```
 
-#### `Format.decode(input: openarray[byte]|string, RecordType: type, params: varargs): RecordType`
+#### `Format.decode(input: openArray[byte]|string, RecordType: type, params: varargs): RecordType`
 
 Decodes and returns a value of the specified `RecordType`. All params will
 be forwarded without modification to the used `Reader` type. A Format-specific
