@@ -225,8 +225,9 @@ proc makeFieldReadersTable(RecordType, ReaderType: distinct type):
       except SerializationError as err:
         raise err
       except CatchableError as err:
+        type LocalRecordType = `RecordType` # workaround to allow compile time evaluation
         reader.handleReadException(
-          `RecordType`,
+          LocalRecordType,
           fieldName,
           when RecordType is tuple: obj[i] else: field(obj, realFieldName),
           err)
