@@ -1,2 +1,4 @@
 nimcache/
 tests/test_all
+nimble.develop
+nimble.paths
