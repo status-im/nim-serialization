@@ -247,6 +247,20 @@ proc fieldReadersTable*(RecordType, ReaderType: distinct type):
     tbl[] = makeFieldReadersTable(RecordType, ReaderType)
   return addr(tbl[])
 
+proc findFieldIdx*(fieldsTable: FieldReadersTable,
+                   fieldName: string,
+                   expectedFieldPos: var int): int =
+  for i in expectedFieldPos ..< fieldsTable.len:
+    if fieldsTable[i].fieldName == fieldName:
+      expectedFieldPos = i + 1
+      return i
+
+  for i in 0 ..< expectedFieldPos:
+    if fieldsTable[i].fieldName == fieldName:
+      return i
+
+  return -1
+
 proc findFieldReader*(fieldsTable: FieldReadersTable,
                       fieldName: string,
                       expectedFieldPos: var int): auto =
