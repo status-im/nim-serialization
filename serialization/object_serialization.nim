@@ -371,7 +371,7 @@ proc genCustomSerializationForField(Format, field,
       type ReaderType = Reader(`Format`)
       proc readFieldIMPL*(F: type FieldTag[`RecordType`, `fieldName`],
                           `readerSym`: var ReaderType): `FieldType`
-                         {.raises: [IOError, SerializationError, Defect].} =
+                         {.raises: [IOError, SerializationError, Defect], gcsafe.} =
         `readBody`
 
   if writeBody != nil:
@@ -381,7 +381,7 @@ proc genCustomSerializationForField(Format, field,
                            F: type FieldTag[`RecordType`, `fieldName`],
                            `valueSym`: auto,
                            `holderSym`: `RecordType`)
-                          {.raises: [IOError, Defect].} =
+                          {.raises: [IOError, Defect], gcsafe.} =
         `writeBody`
 
 proc genCustomSerializationForType(Format, typ: NimNode,
@@ -392,14 +392,14 @@ proc genCustomSerializationForType(Format, typ: NimNode,
     result.add quote do:
       type ReaderType = Reader(`Format`)
       proc readValue*(`readerSym`: var ReaderType, T: type `typ`): `typ`
-                     {.raises: [IOError, SerializationError, Defect].} =
+                     {.raises: [IOError, SerializationError, Defect], gcsafe.} =
         `readBody`
 
   if writeBody != nil:
     result.add quote do:
       type WriterType = Writer(`Format`)
       proc writeValue*(`writerSym`: var WriterType, `valueSym`: `typ`)
-                      {.raises: [IOError, Defect].} =
+                      {.raises: [IOError, Defect], gcsafe.} =
         `writeBody`
 
 macro useCustomSerialization*(Format: typed, field: untyped, body: untyped): untyped =
