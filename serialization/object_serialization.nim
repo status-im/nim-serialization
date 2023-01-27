@@ -201,9 +201,11 @@ template writeFieldIMPL*[Writer](writer: var Writer,
   mixin writeValue
   writeValue(writer, fieldVal)
 
-proc makeFieldReadersTable(RecordType, ReaderType: distinct type):
-                           seq[FieldReader[RecordType, ReaderType]] =
+proc makeFieldReadersTable(RecordType, ReaderType: distinct type,
+                           numFields: static[int]):
+                           array[numFields, FieldReader[RecordType, ReaderType]] =
   mixin enumAllSerializedFields, readFieldIMPL, handleReadException
+  var idx = 0
 
   enumAllSerializedFields(RecordType):
     proc readField(obj: var RecordType, reader: var ReaderType)
@@ -232,19 +234,17 @@ proc makeFieldReadersTable(RecordType, ReaderType: distinct type):
           when RecordType is tuple: obj[i] else: field(obj, realFieldName),
           err)
 
-    result.add((fieldName, readField))
+    result[idx] = (fieldName, readField)
+    inc idx
 
-proc fieldReadersTable*(RecordType, ReaderType: distinct type):
-                        ptr seq[FieldReader[RecordType, ReaderType]] =
+proc fieldReadersTable*(RecordType, ReaderType: distinct type): auto =
   mixin readValue
-
-  # careful: https://github.com/nim-lang/Nim/issues/17085
-  # TODO why is this even here? one could just return the function pointer
-  #      to the field reader directly instead of going through this seq etc
-  var tbl {.threadvar.}: ref seq[FieldReader[RecordType, ReaderType]]
+  type T = RecordType
+  const numFields = totalSerializedFields(T)
+  var tbl {.threadvar.}: ref array[numFields, FieldReader[RecordType, ReaderType]]
   if tbl == nil:
     tbl = new typeof(tbl)
-    tbl[] = makeFieldReadersTable(RecordType, ReaderType)
+    tbl[] = makeFieldReadersTable(RecordType, ReaderType, numFields)
   return addr(tbl[])
 
 proc findFieldIdx*(fieldsTable: FieldReadersTable,
