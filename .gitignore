@@ -3,5 +3,6 @@ tests/test_all
 nimble.develop
 nimble.paths
 build/
+vendor/
 
 *.exe

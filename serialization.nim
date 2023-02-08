@@ -26,6 +26,8 @@ template encode*(Format: type, value: auto, params: varargs[untyped]): auto =
 {.push warning[ProveInit]: off.}
 proc readValue*(reader: var auto, T: type): T =
   mixin readValue
+  when (NimMajor, NimMinor) > (1, 6):
+    result = default(T)
   reader.readValue(result)
 {.pop.}
 
