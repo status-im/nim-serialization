@@ -188,12 +188,6 @@ template readFieldIMPL[Reader](field: type FieldTag,
   {.gcsafe.}: # needed by Nim-1.6
     reader.readValue GetFieldType(field)
 
-template readFieldIMPL[Reader](field: type FieldTag,
-                               reader: var Reader): untyped =
-  mixin readValue
-  {.gcsafe.}: # needed by Nim-1.6
-    reader.readValue GetFieldType(field)
-
 template writeFieldIMPL*[Writer](writer: var Writer,
                                  fieldTag: type FieldTag,
                                  fieldVal: auto,
@@ -210,6 +204,9 @@ proc makeFieldReadersTable(RecordType, ReaderType: distinct type,
   enumAllSerializedFields(RecordType):
     proc readField(obj: var RecordType, reader: var ReaderType)
                   {.gcsafe, nimcall, raises: [SerializationError, Defect].} =
+      
+      mixin readValue
+      
       when RecordType is tuple:
         const i = fieldName.parseInt
 
@@ -217,13 +214,20 @@ proc makeFieldReadersTable(RecordType, ReaderType: distinct type,
         when RecordType is tuple:
           reader.readValue obj[i]
         else:
-          type F = FieldTag[RecordType, realFieldName]
           # TODO: The `FieldType` coercion below is required to deal
           # with a nim bug caused by the distinct `ssz.List` type.
           # It seems to break the generics cache mechanism, which
           # leads to an incorrect return type being reported from
           # the `readFieldIMPL` function.
-          field(obj, realFieldName) = FieldType readFieldIMPL(F, reader)
+          field(obj, realFieldName) = FieldType reader.readValue(FieldType)
+          
+          when false:
+            # somehow this code result in crash with nim orc enabled.
+            # that's why we use reader.readValue
+            # removing FieldType coercion also prevent crash, but see above comment
+            type F = FieldTag[RecordType, realFieldName]
+            field(obj, realFieldName) = FieldType readFieldIMPL(F, reader)
+            
       except SerializationError as err:
         raise err
       except CatchableError as err:
