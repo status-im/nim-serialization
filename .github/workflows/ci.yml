@@ -24,9 +24,7 @@ jobs:
             cpu: amd64
           - os: windows
             cpu: amd64
-          #- os: windows
-            #cpu: i386
-        branch: [version-1-2, version-1-4, version-1-6, version-2-0, devel]
+        branch: [version-1-6, version-2-0, devel]
         include:
           - target:
               os: linux
@@ -38,7 +36,7 @@ jobs:
             shell: bash
           - target:
               os: windows
-            builder: windows-2019
+            builder: windows-latest
             shell: msys2 {0}
 
     defaults:
@@ -156,5 +154,4 @@ jobs:
           nim --version
           nimble --version
           nimble install -y --depsOnly
-          rm -f nimble.lock
           nimble test
