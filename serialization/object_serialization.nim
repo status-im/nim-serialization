@@ -197,7 +197,10 @@ template readFieldIMPL[Reader](field: type FieldTag,
     # additional notes: putting the FieldType coercion in
     # `makeFieldReadersTable` will cause problems when orc enabled
     # hence, move it here
-    FieldType reader.readValue(FieldType)
+    when distinctBase(FieldType) isnot FieldType:
+      FieldType reader.readValue(FieldType)
+    else:
+      reader.readValue(FieldType)
 
 template writeFieldIMPL*[Writer](writer: var Writer,
                                  fieldTag: type FieldTag,

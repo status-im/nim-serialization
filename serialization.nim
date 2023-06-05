@@ -23,13 +23,12 @@ template encode*(Format: type, value: auto, params: varargs[untyped]): auto =
       raise (ref Defect)() # a memoryOutput cannot have an IOError
 
 # TODO Nim cannot make sense of this initialization by var param?
-{.push warning[ProveInit]: off.}
 proc readValue*(reader: var auto, T: type): T =
+  {.warning[ProveInit]: off.}
   mixin readValue
-  when (NimMajor, NimMinor) > (1, 6):
-    result = default(T)
+  result = default(T)
   reader.readValue(result)
-{.pop.}
+  {.warning[ProveInit]: on.}
 
 template decode*(Format: distinct type,
                  input: string,
