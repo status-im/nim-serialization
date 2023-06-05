@@ -377,7 +377,7 @@ proc genCustomSerializationForField(Format, field,
       type ReaderType = Reader(`Format`)
       proc readFieldIMPL*(F: type FieldTag[`RecordType`, `fieldName`],
                           `readerSym`: var ReaderType): `FieldType`
-                         {.raises: [IOError, SerializationError, Defect], gcsafe.} =
+                         {.raises: [IOError, SerializationError], gcsafe.} =
         `readBody`
 
   if writeBody != nil:
@@ -387,7 +387,7 @@ proc genCustomSerializationForField(Format, field,
                            F: type FieldTag[`RecordType`, `fieldName`],
                            `valueSym`: auto,
                            `holderSym`: `RecordType`)
-                          {.raises: [IOError, Defect], gcsafe.} =
+                          {.raises: [IOError], gcsafe.} =
         `writeBody`
 
 proc genCustomSerializationForType(Format, typ: NimNode,
@@ -398,7 +398,7 @@ proc genCustomSerializationForType(Format, typ: NimNode,
     result.add quote do:
       type ReaderType = Reader(`Format`)
       proc readValue*(`readerSym`: var ReaderType, T: type `typ`): `typ`
-                     {.raises: [IOError, SerializationError, Defect], gcsafe.} =
+                     {.raises: [IOError, SerializationError], gcsafe.} =
         `readBody`
 
   if writeBody != nil:

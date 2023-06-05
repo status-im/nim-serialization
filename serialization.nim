@@ -23,7 +23,7 @@ template encode*(Format: type, value: auto, params: varargs[untyped]): auto =
       raise (ref Defect)() # a memoryOutput cannot have an IOError
 
 # TODO Nim cannot make sense of this initialization by var param?
-proc readValue*(reader: var auto, T: type): T =
+proc readValue*(reader: var auto, T: type): T {.gcsafe, raises: [SerializationError, IOError].} =
   {.warning[ProveInit]: off.}
   mixin readValue
   result = default(T)

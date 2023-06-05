@@ -136,6 +136,14 @@ func caseObjectEquals(a, b: CaseObject): bool =
 func `==`*(a, b: CaseObject): bool =
   caseObjectEquals(a, b)
 
+func `==`*(a, b: ListOfLists): bool =
+  if a.lists.len != b.lists.len:
+    return false
+  for i in 0..<a.lists.len:
+    if a.lists[i] != b.lists[i]:
+      return false
+  true
+
 template maybeDefer(x: auto): auto =
   when type(x) is ref:
     x[]
@@ -151,6 +159,9 @@ template roundtripChecks*(Format: type, value: auto, expectedResult: auto) =
     check serialized == expectedResult
 
   try:
+    const typeName = typetraits.name(type(origValue))
+    {.warning: "WWW: " & typeName.}
+    
     let decoded = Format.decode(serialized, type(origValue))
     checkpoint "(decoded value): " & repr(decoded)
     let success = maybeDefer(decoded) == maybeDefer(origValue)
