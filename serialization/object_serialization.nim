@@ -214,7 +214,7 @@ proc makeFieldReadersTable(RecordType, ReaderType: distinct type,
 
   enumAllSerializedFields(RecordType):
     proc readField(obj: var RecordType, reader: var ReaderType)
-                  {.gcsafe, nimcall, raises: [SerializationError, Defect].} =
+                  {.gcsafe, nimcall, raises: [SerializationError].} =
 
       mixin readValue
 
