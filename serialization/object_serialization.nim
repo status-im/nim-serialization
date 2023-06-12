@@ -228,6 +228,9 @@ proc makeFieldReadersTable(RecordType, ReaderType: distinct type,
         when RecordType is tuple:
           reader.readValue obj[i]
         else:
+          static: doAssert not isCaseObject(typeof(obj)),
+            "Case object `" & $typeof(obj) &
+            "` must have custom `readValue` for `" & $typeof(reader) & "`"
           type F = FieldTag[RecordType, realFieldName]
           field(obj, realFieldName) = readFieldIMPL(F, reader)
       except SerializationError as err:
@@ -419,4 +422,3 @@ macro useCustomSerialization*(Format: typed, field: untyped, body: untyped): unt
 
   when defined(debugUseCustomSerialization):
     echo result.repr
-
