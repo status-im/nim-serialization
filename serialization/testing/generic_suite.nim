@@ -113,16 +113,16 @@ Simple.setSerializedFields distance, x, y
 
 proc default(T: typedesc): T = discard
 
-func caseObjectEquals(a, b: CaseObject): bool
+func caseObjectEquals(a, b: CaseObject): bool {.raises: [].}
 
-func `==`*(a, b: CaseObjectRef): bool =
+func `==`*(a, b: CaseObjectRef): bool {.raises: [].} =
   let nils = ord(a.isNil) + ord(b.isNil)
   if nils == 0:
     caseObjectEquals(a[], b[])
   else:
     nils == 2
 
-func caseObjectEquals(a, b: CaseObject): bool =
+func caseObjectEquals(a, b: CaseObject): bool {.raises: [].} =
   # TODO This is needed to work-around a Nim overload selection issue
   if a.kind != b.kind: return false
 
@@ -161,7 +161,7 @@ template roundtripChecks*(Format: type, value: auto, expectedResult: auto) =
   try:
     const typeName = typetraits.name(type(origValue))
     {.warning: "WWW: " & typeName.}
-    
+
     let decoded = Format.decode(serialized, type(origValue))
     checkpoint "(decoded value): " & repr(decoded)
     let success = maybeDefer(decoded) == maybeDefer(origValue)
@@ -369,4 +369,3 @@ proc executeReaderWriterTests*(Format: type) =
         findFieldReader(bazFields[], "some_other_name", pos) == nil
 
   executeRoundtripTests(Format)
-
