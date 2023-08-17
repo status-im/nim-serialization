@@ -104,7 +104,8 @@ template saveFile*(Format: type, filename: string, value: auto, params: varargs[
 template borrowSerialization*(Alias: type) {.dirty.} =
   bind distinctBase
 
-  proc writeValue*[Writer](writer: var Writer, value: Alias) =
+  proc writeValue*[Writer](
+      writer: var Writer, value: Alias) {.raises: [IOError].} =
     mixin writeValue
     writeValue(writer, distinctBase value)
 
@@ -115,7 +116,8 @@ template borrowSerialization*(Alias: type) {.dirty.} =
 template borrowSerialization*(Alias: distinct type,
                               OriginalType: distinct type) {.dirty.} =
 
-  proc writeValue*[Writer](writer: var Writer, value: Alias) =
+  proc writeValue*[Writer](
+      writer: var Writer, value: Alias) {.raises: [IOError].} =
     mixin writeValue
     writeValue(writer, OriginalType value)
 
@@ -161,4 +163,3 @@ template writeValue*(stream: OutputStream,
   type WriterType = Writer(Format)
   var writer = unpackArgs(init, [WriterType, stream, params])
   writeValue writer, value
-

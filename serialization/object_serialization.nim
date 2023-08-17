@@ -408,7 +408,7 @@ proc genCustomSerializationForType(Format, typ: NimNode,
     result.add quote do:
       type WriterType = Writer(`Format`)
       proc writeValue*(`writerSym`: var WriterType, `valueSym`: `typ`)
-                      {.raises: [IOError, Defect], gcsafe.} =
+                      {.raises: [IOError], gcsafe.} =
         `writeBody`
 
 macro useCustomSerialization*(Format: typed, field: untyped, body: untyped): untyped =
