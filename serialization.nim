@@ -8,19 +8,20 @@ export
 
 template encode*(Format: type, value: auto, params: varargs[untyped]): auto =
   mixin init, Writer, writeValue, PreferredOutputType
-  {.noSideEffect.}:
-    # We assume that there is no side-effects here, because we are
-    # using a `memoryOutput`. The computed side-effects are coming
-    # from the fact that the dynamic dispatch mechanisms used in
-    # faststreams may be writing to a file or a network device.
-    try:
-      var s = memoryOutput()
-      type WriterType = Writer(Format)
-      var writer = unpackArgs(init, [WriterType, s, params])
-      writeValue writer, value
-      s.getOutput PreferredOutputType(Format)
-    except IOError:
-      raise (ref Defect)() # a memoryOutput cannot have an IOError
+  block:  # https://github.com/nim-lang/Nim/issues/22874
+    {.noSideEffect.}:
+      # We assume that there is no side-effects here, because we are
+      # using a `memoryOutput`. The computed side-effects are coming
+      # from the fact that the dynamic dispatch mechanisms used in
+      # faststreams may be writing to a file or a network device.
+      try:
+        var s = memoryOutput()
+        type WriterType = Writer(Format)
+        var writer = unpackArgs(init, [WriterType, s, params])
+        writeValue writer, value
+        s.getOutput PreferredOutputType(Format)
+      except IOError:
+        raise (ref Defect)() # a memoryOutput cannot have an IOError
 
 # TODO Nim cannot make sense of this initialization by var param?
 proc readValue*(reader: var auto, T: type): T {.gcsafe, raises: [SerializationError, IOError].} =
@@ -37,18 +38,19 @@ template decode*(Format: distinct type,
   # TODO, this is dusplicated only due to a Nim bug:
   # If `input` was `string|openArray[byte]`, it won't match `seq[byte]`
   mixin init, Reader
-  {.noSideEffect.}:
-    # We assume that there are no side-effects here, because we are
-    # using a `memoryInput`. The computed side-effects are coming
-    # from the fact that the dynamic dispatch mechanisms used in
-    # faststreams may be reading from a file or a network device.
-    try:
-      var stream = unsafeMemoryInput(input)
-      type ReaderType = Reader(Format)
-      var reader = unpackArgs(init, [ReaderType, stream, params])
-      reader.readValue(RecordType)
-    except IOError:
-      raise (ref Defect)() # memory inputs cannot raise an IOError
+  block:  # https://github.com/nim-lang/Nim/issues/22874
+    {.noSideEffect.}:
+      # We assume that there are no side-effects here, because we are
+      # using a `memoryInput`. The computed side-effects are coming
+      # from the fact that the dynamic dispatch mechanisms used in
+      # faststreams may be reading from a file or a network device.
+      try:
+        var stream = unsafeMemoryInput(input)
+        type ReaderType = Reader(Format)
+        var reader = unpackArgs(init, [ReaderType, stream, params])
+        reader.readValue(RecordType)
+      except IOError:
+        raise (ref Defect)() # memory inputs cannot raise an IOError
 
 template decode*(Format: distinct type,
                  input: openArray[byte],
@@ -57,18 +59,19 @@ template decode*(Format: distinct type,
   # TODO, this is dusplicated only due to a Nim bug:
   # If `input` was `string|openArray[byte]`, it won't match `seq[byte]`
   mixin init, Reader
-  {.noSideEffect.}:
-    # We assume that there are no side-effects here, because we are
-    # using a `memoryInput`. The computed side-effects are coming
-    # from the fact that the dynamic dispatch mechanisms used in
-    # faststreams may be reading from a file or a network device.
-    try:
-      var stream = unsafeMemoryInput(input)
-      type ReaderType = Reader(Format)
-      var reader = unpackArgs(init, [ReaderType, stream, params])
-      reader.readValue(RecordType)
-    except IOError:
-      raise (ref Defect)() # memory inputs cannot raise an IOError
+  block:  # https://github.com/nim-lang/Nim/issues/22874
+    {.noSideEffect.}:
+      # We assume that there are no side-effects here, because we are
+      # using a `memoryInput`. The computed side-effects are coming
+      # from the fact that the dynamic dispatch mechanisms used in
+      # faststreams may be reading from a file or a network device.
+      try:
+        var stream = unsafeMemoryInput(input)
+        type ReaderType = Reader(Format)
+        var reader = unpackArgs(init, [ReaderType, stream, params])
+        reader.readValue(RecordType)
+      except IOError:
+        raise (ref Defect)() # memory inputs cannot raise an IOError
 
 template loadFile*(Format: distinct type,
                    filename: string,
