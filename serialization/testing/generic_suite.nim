@@ -159,8 +159,6 @@ template roundtripChecks*(Format: type, value: auto, expectedResult: auto) =
     check serialized == expectedResult
 
   try:
-    const typeName = typetraits.name(type(origValue))
-
     let decoded = Format.decode(serialized, type(origValue))
     checkpoint "(decoded value): " & repr(decoded)
     let success = maybeDefer(decoded) == maybeDefer(origValue)
