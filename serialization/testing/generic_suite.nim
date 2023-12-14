@@ -160,7 +160,6 @@ template roundtripChecks*(Format: type, value: auto, expectedResult: auto) =
 
   try:
     const typeName = typetraits.name(type(origValue))
-    {.warning: "WWW: " & typeName.}
 
     let decoded = Format.decode(serialized, type(origValue))
     checkpoint "(decoded value): " & repr(decoded)
