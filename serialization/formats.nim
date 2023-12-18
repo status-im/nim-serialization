@@ -1,6 +1,9 @@
 import
   std/typetraits
 
+type
+  DefaultFlavor* = object
+
 template serializationFormatImpl(Name: untyped,
                                  mimeTypeName: static string = "") {.dirty.} =
   # This indirection is required in order to be able to generate the
@@ -28,7 +31,7 @@ template setWriter*(Format, FormatWriter, PreferredOutput: distinct type) =
   else:
     template WriterType*(T: type Format): type = FormatWriter
     template Writer*(T: type Format): type = FormatWriter
-  
+
   template PreferredOutputType*(T: type Format): type = PreferredOutput
 
 template createFlavor*(ModifiedFormat, FlavorName: untyped) =
