@@ -1,5 +1,8 @@
 import
-  std/typetraits
+  std/[typetraits, macros]
+
+type
+  DefaultFlavor* = object
 
 template serializationFormatImpl(Name: untyped,
                                  mimeTypeName: static string = "") {.dirty.} =
@@ -28,7 +31,7 @@ template setWriter*(Format, FormatWriter, PreferredOutput: distinct type) =
   else:
     template WriterType*(T: type Format): type = FormatWriter
     template Writer*(T: type Format): type = FormatWriter
-  
+
   template PreferredOutputType*(T: type Format): type = PreferredOutput
 
 template createFlavor*(ModifiedFormat, FlavorName: untyped) =
@@ -38,3 +41,19 @@ template createFlavor*(ModifiedFormat, FlavorName: untyped) =
   template PreferredOutputType*(T: type FlavorName): type = PreferredOutputType(ModifiedFormat)
   template mimeType*(T: type FlavorName): string = mimeType(ModifiedFormat)
 
+template useDefaultSerializationIn*(T: untyped, Flavor: type) =
+  mixin Reader, Writer
+
+  template readValue*(r: var Reader(Flavor), value: var T) =
+    mixin readRecordValue
+    readRecordValue(r, value)
+
+  template writeValue*(w: var Writer(Flavor), value: T) =
+    mixin writeRecordValue
+    writeRecordValue(w, value)
+
+macro useDefaultSerializationFor*(Flavor: type, types: varargs[untyped])=
+  result = newStmtList()
+
+  for T in types:
+    result.add newCall(bindSym "useDefaultSerializationIn", T, Flavor)

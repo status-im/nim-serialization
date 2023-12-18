@@ -1,11 +1,13 @@
 import
   std/typetraits,
   stew/shims/macros, stew/objects,
-  ./errors
+  ./errors, ./formats
 
 type
-  DefaultFlavor* = object
   FieldTag*[RecordType: object; fieldName: static string] = distinct void
+
+export
+  DefaultFlavor
 
 let
   # Identifiers affecting the public interface of the library:
