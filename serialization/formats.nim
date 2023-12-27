@@ -52,8 +52,35 @@ template useDefaultSerializationIn*(T: untyped, Flavor: type) =
     mixin writeRecordValue
     writeRecordValue(w, value)
 
+template useDefaultWriterIn*(T: untyped, Flavor: type) =
+  mixin Writer
+
+  template writeValue*(w: var Writer(Flavor), value: T) =
+    mixin writeRecordValue
+    writeRecordValue(w, value)
+
+template useDefaultReaderIn*(T: untyped, Flavor: type) =
+  mixin Reader
+
+  template readValue*(r: var Reader(Flavor), value: var T) =
+    mixin readRecordValue
+    readRecordValue(r, value)
+
 macro useDefaultSerializationFor*(Flavor: type, types: varargs[untyped])=
   result = newStmtList()
 
   for T in types:
     result.add newCall(bindSym "useDefaultSerializationIn", T, Flavor)
+
+macro useDefaultWriterFor*(Flavor: type, types: varargs[untyped])=
+  result = newStmtList()
+
+  for T in types:
+    result.add newCall(bindSym "useDefaultWriterIn", T, Flavor)
+
+macro useDefaultReaderFor*(Flavor: type, types: varargs[untyped])=
+  result = newStmtList()
+
+  for T in types:
+    result.add newCall(bindSym "useDefaultReaderIn", T, Flavor)
+
