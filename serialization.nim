@@ -25,11 +25,11 @@ template encode*(Format: type, value: auto, params: varargs[untyped]): auto =
 
 # TODO Nim cannot make sense of this initialization by var param?
 proc readValue*(reader: var auto, T: type): T {.gcsafe, raises: [SerializationError, IOError].} =
-  {.warning[ProveInit]: off.}
+  {.warning[ProveInit]: false.}
   mixin readValue
   result = default(T)
   reader.readValue(result)
-  {.warning[ProveInit]: on.}
+  {.warning[ProveInit]: true.}
 
 template decode*(Format: distinct type,
                  input: string,
