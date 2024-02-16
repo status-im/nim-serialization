@@ -234,7 +234,9 @@ proc makeFieldReadersTable(RecordType, ReaderType: distinct type,
             "Case object `" & $typeof(obj) &
             "` must have custom `readValue` for `" & $typeof(reader) & "`"
           type F = FieldTag[RecordType, realFieldName]
+          {.push hint[ConvFromXtoItselfNotNeeded]: off.}
           field(obj, realFieldName) = readFieldIMPL(F, reader)
+          {.pop.}
       except SerializationError as err:
         raise err
       except CatchableError as err:
