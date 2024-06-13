@@ -104,7 +104,6 @@ macro enumAllSerializedFieldsImpl(T: type, body: untyped): untyped =
       continue
 
     let
-      fieldType = field.typ
       fieldIdent = field.name
       realFieldName = newLit($fieldIdent.skipPragma)
       serializedFieldName = field.readPragma("serializedFieldName")
@@ -137,7 +136,9 @@ macro enumAllSerializedFieldsImpl(T: type, body: untyped): untyped =
       block:
         `fieldNameDefs`
 
-        type FieldType {.inject, used.} = type(`field`)
+        # `FieldType` should be `type`:
+        # https://github.com/nim-lang/Nim/issues/23564
+        template FieldType: untyped {.inject, used.} = typeof(`field`)
 
         template fieldCaseDiscriminator: auto {.used.} = `discriminator`
         template fieldCaseBranches: auto {.used.} = `branches`
