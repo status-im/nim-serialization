@@ -9,8 +9,12 @@ skipDirs      = @["tests"]
 
 requires "nim >= 1.6.0",
          "faststreams",
-         "unittest2",
          "stew"
+
+when NimMajor >= 2:
+  taskRequires "test", "unittest2"
+else:
+  requires "unittest2"
 
 let nimc = getEnv("NIMC", "nim") # Which nim compiler to use
 let lang = getEnv("NIMLANG", "c") # Which backend (c/cpp/js)
