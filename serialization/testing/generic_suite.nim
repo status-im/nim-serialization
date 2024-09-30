@@ -333,14 +333,14 @@ proc executeReaderWriterTests*(Format: type) =
 
   suite(typetraits.name(Format) & " read/write tests"):
     test "Low-level field reader test":
-      let barFields = fieldReadersTable(Bar, ReaderType)
+      const barFields = fieldReadersTable(Bar, ReaderType)
       var idx = 0
 
-      var fieldReader = findFieldReader(barFields[], "b", idx)
+      var fieldReader = findFieldReader(barFields, "b", idx)
       check fieldReader != nil and idx == 1
 
       # check that the reader can be found again starting from a higher index
-      fieldReader = findFieldReader(barFields[], "b", idx)
+      fieldReader = findFieldReader(barFields, "b", idx)
       check fieldReader != nil and idx == 1
 
       var bytes = Format.encode("test")
@@ -354,9 +354,9 @@ proc executeReaderWriterTests*(Format: type) =
 
     test "Ignored fields should not be included in the field readers table":
       var pos = 0
-      let bazFields = fieldReadersTable(Baz, ReaderType)
+      const bazFields = fieldReadersTable(Baz, ReaderType)
       check:
-        len(bazFields[]) == 2
+        len(bazFields) == 2
         findFieldReader(bazFields[], "f", pos) != nil
         findFieldReader(bazFields[], "i", pos) != nil
         findFieldReader(bazFields[], "i", pos) != nil
