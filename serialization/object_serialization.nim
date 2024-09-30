@@ -251,15 +251,12 @@ proc makeFieldReadersTable(RecordType, ReaderType: distinct type,
     result[idx] = (fieldName, readField)
     inc idx
 
-proc fieldReadersTable*(RecordType, ReaderType: distinct type): auto =
-  mixin readValue
+template fieldReadersTable*(RecordType, ReaderType: distinct type): auto =
   type T = RecordType
   const numFields = totalSerializedFields(T)
-  var tbl {.threadvar.}: ref array[numFields, FieldReader[RecordType, ReaderType]]
-  if tbl == nil:
-    tbl = new typeof(tbl)
-    tbl[] = makeFieldReadersTable(RecordType, ReaderType, numFields)
-  return addr(tbl[])
+  makeFieldReadersTable(T, ReaderType, numFields)
+
+template `[]`*(v: FieldReadersTable): FieldReadersTable {.deprecated.} = v
 
 proc findFieldIdx*(fieldsTable: FieldReadersTable,
                    fieldName: string,
