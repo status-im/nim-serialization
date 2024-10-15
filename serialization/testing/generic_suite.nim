@@ -357,12 +357,12 @@ proc executeReaderWriterTests*(Format: type) =
       const bazFields = fieldReadersTable(Baz, ReaderType)
       check:
         len(bazFields) == 2
-        findFieldReader(bazFields[], "f", pos) != nil
-        findFieldReader(bazFields[], "i", pos) != nil
-        findFieldReader(bazFields[], "i", pos) != nil
-        findFieldReader(bazFields[], "f", pos) != nil
-        findFieldReader(bazFields[], "f", pos) != nil
-        findFieldReader(bazFields[], "ignored", pos) == nil
-        findFieldReader(bazFields[], "some_other_name", pos) == nil
+        findFieldReader(bazFields, "f", pos) != nil
+        findFieldReader(bazFields, "i", pos) != nil
+        findFieldReader(bazFields, "i", pos) != nil
+        findFieldReader(bazFields, "f", pos) != nil
+        findFieldReader(bazFields, "f", pos) != nil
+        findFieldReader(bazFields, "ignored", pos) == nil
+        findFieldReader(bazFields, "some_other_name", pos) == nil
 
   executeRoundtripTests(Format)
