@@ -41,28 +41,46 @@ template createFlavor*(ModifiedFormat, FlavorName: untyped) =
   template PreferredOutputType*(T: type FlavorName): type = PreferredOutputType(ModifiedFormat)
   template mimeType*(T: type FlavorName): string = mimeType(ModifiedFormat)
 
+template toObjectType(T: type): untyped =
+  typeof(T()[])
+
+template toObjectTypeIfNecessary(T: type): untyped =
+  when T is ref|ptr:
+    toObjectType(T)
+  else:
+    T
+
+# useDefault***In or useDefault***For only works for
+# object|ref object|ptr object
+
 template useDefaultSerializationIn*(T: untyped, Flavor: type) =
   mixin Reader, Writer
 
-  template readValue*(r: var Reader(Flavor), value: var T) =
+  type TT = toObjectTypeIfNecessary(T)
+
+  template readValue*(r: var Reader(Flavor), value: var TT) =
     mixin readRecordValue
     readRecordValue(r, value)
 
-  template writeValue*(w: var Writer(Flavor), value: T) =
+  template writeValue*(w: var Writer(Flavor), value: TT) =
     mixin writeRecordValue
     writeRecordValue(w, value)
 
 template useDefaultWriterIn*(T: untyped, Flavor: type) =
   mixin Writer
 
-  template writeValue*(w: var Writer(Flavor), value: T) =
+  type TT = toObjectTypeIfNecessary(T)
+
+  template writeValue*(w: var Writer(Flavor), value: TT) =
     mixin writeRecordValue
     writeRecordValue(w, value)
 
 template useDefaultReaderIn*(T: untyped, Flavor: type) =
   mixin Reader
 
-  template readValue*(r: var Reader(Flavor), value: var T) =
+  type TT = toObjectTypeIfNecessary(T)
+
+  template readValue*(r: var Reader(Flavor), value: var TT) =
     mixin readRecordValue
     readRecordValue(r, value)
 
@@ -83,4 +101,3 @@ macro useDefaultReaderFor*(Flavor: type, types: varargs[untyped])=
 
   for T in types:
     result.add newCall(bindSym "useDefaultReaderIn", T, Flavor)
-
