@@ -1,7 +1,7 @@
 mode = ScriptMode.Verbose
 
 packageName   = "serialization"
-version       = "0.2.6"
+version       = "0.2.7"
 author        = "Status Research & Development GmbH"
 description   = "A modern and extensible serialization framework for Nim"
 license       = "Apache License 2.0"
@@ -19,7 +19,7 @@ let verbose = getEnv("V", "") notin ["", "0"]
 
 let cfg =
   " --styleCheck:usages --styleCheck:error" &
-  (if verbose: "" else: " --verbosity:0 --hints:off") &
+  (if verbose: "" else: " --verbosity:0") &
   " --skipParentCfg --skipUserCfg --outdir:build --nimcache:build/nimcache -f"
 
 proc build(args, path: string) =
