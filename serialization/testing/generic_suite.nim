@@ -111,8 +111,6 @@ static:
 Meter.borrowSerialization int
 Simple.setSerializedFields distance, x, y
 
-proc default(T: typedesc): T = discard
-
 func caseObjectEquals(a, b: CaseObject): bool {.raises: [].}
 
 func `==`*(a, b: CaseObjectRef): bool {.raises: [].} =
@@ -187,11 +185,10 @@ template roundtripChecks*(Format: type, value: auto) =
 
 proc executeRoundtripTests*(Format: type) =
   template roundtrip(val: untyped) =
-    mixin supports
     # TODO:
     # If this doesn't work reliably, it will fail too silently.
     # We need to report the number of checks passed.
-    when supports(Format, type(val)):
+    when compiles(roundtripChecks(Format, val)):
       roundtripChecks(Format, val)
 
   suite(name(Format) & " generic roundtrip tests"):
@@ -232,12 +229,12 @@ proc executeRoundtripTests*(Format: type) =
                   f: Foo(x: 5'u64, y: "hocus pocus", z: @[100, 200, 300]))
       roundtrip b
 
-      when false and supports(Format, Transaction):
+      when false:
         # Some formats may not support the DateTime type.
         var t = Transaction(time: now(), amount: 1000, sender: "Alice", receiver: "Bob")
         roundtrip t
 
-      when false and supports(Format, Baz):
+      when false:
         # TODO: Specify the custom serialization required for the `Baz` type
         # and give it a more proper name. The custom serialization demands
         # that the `ignored` field is populated with a value depending on
