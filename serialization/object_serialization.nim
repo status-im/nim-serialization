@@ -163,8 +163,6 @@ func isCaseObject*(T: type): bool {.compileTime.} =
     newLit(false)
 
 type
-  FieldMarkerImpl*[name: static string] = object
-
   FieldReader*[RecordType, Reader] = tuple[
     fieldName: string,
     reader: proc (rec: var RecordType, reader: var Reader)
@@ -219,6 +217,13 @@ proc makeFieldReadersTable(RecordType, ReaderType: distinct type,
   var idx = 0
 
   enumAllSerializedFields(RecordType):
+    if fieldCaseDiscriminator != "":
+      # We don't automatically generate readers for case values since doing so
+      # generically would require parsing into temporaries and creating the
+      # instance afterwards which is complex
+      error("Case object `" & $RecordType &
+            "` must have custom `readValue` for `" & $ReaderType & "`")
+
     proc readField(obj: var RecordType, reader: var ReaderType)
                   {.gcsafe, nimcall, raises: [SerializationError].} =
 
@@ -231,9 +236,6 @@ proc makeFieldReadersTable(RecordType, ReaderType: distinct type,
         when RecordType is tuple:
           reader.readValue obj[i]
         else:
-          static: doAssert not isCaseObject(typeof(obj)),
-            "Case object `" & $typeof(obj) &
-            "` must have custom `readValue` for `" & $typeof(reader) & "`"
           type F = FieldTag[RecordType, realFieldName]
           {.push hint[ConvFromXtoItselfNotNeeded]: off.}
           field(obj, realFieldName) = readFieldIMPL(F, reader)
