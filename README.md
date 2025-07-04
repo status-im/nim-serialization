@@ -24,6 +24,7 @@ and vice versa without allocating any intermediate structures.
 * [TOML](https://github.com/status-im/nim-toml-serialization)
 * [Protobuf](https://github.com/status-im/nim-protobuf-serialization)
 * [SSZ](https://github.com/status-im/nim-ssz-serialization)
+
 Submit a PR to add yours!
 
 ## Defining serialization formats
