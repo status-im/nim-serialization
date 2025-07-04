@@ -12,11 +12,18 @@ interface for marshaling Nim values to and from various serialized formats.
 Individual formats are implemented in separated packages such as
 [`json_serialization`](https://github.com/status-im/nim-json-serialization)
 while this package provides the common interfaces shared between all of them
-and the means to customize your Nim types for the purposes of serialization.
+and the means to customize your Nim types for the purpose of serialization.
 
 The internal mechanisms of the library allow for implementing the required
 marshaling logic in highly efficient way that goes from bytes to Nim values
 and vice versa without allocating any intermediate structures.
+
+## Available serialization formats
+
+* [JSON](https://github.com/status-im/nim-json-serialization)
+* [TOML](https://github.com/status-im/nim-toml-serialization)
+* [Protobuf](https://github.com/status-im/nim-protobuf-serialization)
+* [SSZ](https://github.com/status-im/nim-ssz-serialization)
 
 ## Defining serialization formats
 
@@ -118,8 +125,6 @@ Returns the number of serialized fields in the specified format.
 When submitting pull requests, please add test cases for any new features
 or fixes and make sure `nimble test` is still able to execute the entire
 test suite successfully.
-
-[BOUNTIES]: https://github.com/status-im/nim-confutils/issues?q=is%3Aissue+is%3Aopen+label%3Abounty
 
 ## License
 
