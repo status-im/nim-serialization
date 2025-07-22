@@ -1,14 +1,16 @@
 import
   std/typetraits,
-  stew/shims/macros, faststreams/[inputs, outputs],
+  stew/shims/macros,
+  faststreams/[inputs, outputs],
   ./serialization/[object_serialization, errors, formats]
 
-export
-  inputs, outputs, object_serialization, errors, formats
+export inputs, outputs, object_serialization, errors, formats
 
-template encode*(Format: type, value: auto, params: varargs[untyped]): auto =
+template encode*(
+    Format: type SerializationFormat, value: auto, params: varargs[untyped]
+): auto =
   mixin init, Writer, writeValue, PreferredOutputType
-  block:  # https://github.com/nim-lang/Nim/issues/22874
+  block: # https://github.com/nim-lang/Nim/issues/22874
     {.noSideEffect.}:
       # We assume that there is no side-effects here, because we are
       # using a `memoryOutput`. The computed side-effects are coming
@@ -24,21 +26,25 @@ template encode*(Format: type, value: auto, params: varargs[untyped]): auto =
         raise (ref Defect)() # a memoryOutput cannot have an IOError
 
 # TODO Nim cannot make sense of this initialization by var param?
-proc readValue*(reader: var auto, T: type): T {.gcsafe, raises: [SerializationError, IOError].} =
+proc readValue*(
+    reader: var auto, T: type
+): T {.gcsafe, raises: [SerializationError, IOError].} =
   {.warning[ProveInit]: false.}
   mixin readValue
   result = default(T)
   reader.readValue(result)
   {.warning[ProveInit]: true.}
 
-template decode*(Format: distinct type,
-                 input: string,
-                 RecordType: distinct type,
-                 params: varargs[untyped]): auto =
+template decode*(
+    Format: type SerializationFormat,
+    input: string,
+    RecordType: type,
+    params: varargs[untyped],
+): auto =
   # TODO, this is dusplicated only due to a Nim bug:
   # If `input` was `string|openArray[byte]`, it won't match `seq[byte]`
   mixin init, Reader
-  block:  # https://github.com/nim-lang/Nim/issues/22874
+  block: # https://github.com/nim-lang/Nim/issues/22874
     {.noSideEffect.}:
       # We assume that there are no side-effects here, because we are
       # using a `memoryInput`. The computed side-effects are coming
@@ -52,14 +58,16 @@ template decode*(Format: distinct type,
       except IOError:
         raise (ref Defect)() # memory inputs cannot raise an IOError
 
-template decode*(Format: distinct type,
-                 input: openArray[byte],
-                 RecordType: distinct type,
-                 params: varargs[untyped]): auto =
+template decode*(
+    Format: type SerializationFormat,
+    input: openArray[byte],
+    RecordType: type,
+    params: varargs[untyped],
+): auto =
   # TODO, this is dusplicated only due to a Nim bug:
   # If `input` was `string|openArray[byte]`, it won't match `seq[byte]`
   mixin init, Reader
-  block:  # https://github.com/nim-lang/Nim/issues/22874
+  block: # https://github.com/nim-lang/Nim/issues/22874
     {.noSideEffect.}:
       # We assume that there are no side-effects here, because we are
       # using a `memoryInput`. The computed side-effects are coming
@@ -73,10 +81,12 @@ template decode*(Format: distinct type,
       except IOError:
         raise (ref Defect)() # memory inputs cannot raise an IOError
 
-template loadFile*(Format: distinct type,
-                   filename: string,
-                   RecordType: distinct type,
-                   params: varargs[untyped]): auto =
+template loadFile*(
+    Format: type SerializationFormat,
+    filename: string,
+    RecordType: type,
+    params: varargs[untyped],
+): auto =
   mixin init, Reader, readValue
 
   var stream = memFileInput(filename)
@@ -87,13 +97,20 @@ template loadFile*(Format: distinct type,
   finally:
     close stream
 
-template loadFile*[RecordType](Format: type,
-                               filename: string,
-                               record: var RecordType,
-                               params: varargs[untyped]) =
+template loadFile*[RecordType](
+    Format: type SerializationFormat,
+    filename: string,
+    record: var RecordType,
+    params: varargs[untyped],
+) =
   record = loadFile(Format, filename, RecordType, params)
 
-template saveFile*(Format: type, filename: string, value: auto, params: varargs[untyped]) =
+template saveFile*(
+    Format: type SerializationFormat,
+    filename: string,
+    value: auto,
+    params: varargs[untyped],
+) =
   mixin init, Writer, writeValue
 
   var stream = fileOutput(filename)
@@ -107,8 +124,7 @@ template saveFile*(Format: type, filename: string, value: auto, params: varargs[
 template borrowSerialization*(Alias: type) {.dirty.} =
   bind distinctBase
 
-  proc writeValue*[Writer](
-      writer: var Writer, value: Alias) {.raises: [IOError].} =
+  proc writeValue*[Writer](writer: var Writer, value: Alias) {.raises: [IOError].} =
     mixin writeValue
     writeValue(writer, distinctBase value)
 
@@ -116,11 +132,8 @@ template borrowSerialization*(Alias: type) {.dirty.} =
     mixin readValue
     value = Alias reader.readValue(distinctBase Alias)
 
-template borrowSerialization*(Alias: distinct type,
-                              OriginalType: distinct type) {.dirty.} =
-
-  proc writeValue*[Writer](
-      writer: var Writer, value: Alias) {.raises: [IOError].} =
+template borrowSerialization*(Alias: type, OriginalType: type) {.dirty.} =
+  proc writeValue*[Writer](writer: var Writer, value: Alias) {.raises: [IOError].} =
     mixin writeValue
     writeValue(writer, OriginalType value)
 
@@ -128,8 +141,7 @@ template borrowSerialization*(Alias: distinct type,
     mixin readValue
     value = Alias reader.readValue(OriginalType)
 
-template serializesAsBase*(SerializedType: distinct type,
-                           Format: distinct type) =
+template serializesAsBase*(SerializedType: type, Format: type SerializationFormat) =
   mixin Reader, Writer
 
   type ReaderType = Reader(Format)
@@ -143,25 +155,28 @@ template serializesAsBase*(SerializedType: distinct type,
     mixin readValue
     value = SerializedType reader.readValue(distinctBase SerializedType)
 
-macro serializesAsBaseIn*(SerializedType: type,
-                          Formats: varargs[untyped]) =
+macro serializesAsBaseIn*(SerializedType: type, Formats: varargs[untyped]) =
   result = newStmtList()
   for Fmt in Formats:
     result.add newCall(bindSym"serializesAsBase", SerializedType, Fmt)
 
-template readValue*(stream: InputStream,
-                    Format: type,
-                    ValueType: type,
-                    params: varargs[untyped]): untyped =
+template readValue*(
+    stream: InputStream,
+    Format: type SerializationFormat,
+    ValueType: type,
+    params: varargs[untyped],
+): untyped =
   mixin Reader, init, readValue
   type ReaderType = Reader(Format)
   var reader = unpackArgs(init, [ReaderType, stream, params])
   readValue reader, ValueType
 
-template writeValue*(stream: OutputStream,
-                     Format: type,
-                     value: auto,
-                     params: varargs[untyped]) =
+template writeValue*(
+    stream: OutputStream,
+    Format: type SerializationFormat,
+    value: auto,
+    params: varargs[untyped],
+) =
   mixin Writer, init, writeValue
   type WriterType = Writer(Format)
   var writer = unpackArgs(init, [WriterType, stream, params])
