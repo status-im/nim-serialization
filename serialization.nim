@@ -37,35 +37,10 @@ proc readValue*(
 
 template decode*(
     Format: type SerializationFormat,
-    input: string,
+    input: string|openArray[char]|seq[byte]|openArray[byte],
     RecordType: type,
     params: varargs[untyped],
 ): auto =
-  # TODO, this is dusplicated only due to a Nim bug:
-  # If `input` was `string|openArray[byte]`, it won't match `seq[byte]`
-  mixin init, Reader
-  block: # https://github.com/nim-lang/Nim/issues/22874
-    {.noSideEffect.}:
-      # We assume that there are no side-effects here, because we are
-      # using a `memoryInput`. The computed side-effects are coming
-      # from the fact that the dynamic dispatch mechanisms used in
-      # faststreams may be reading from a file or a network device.
-      try:
-        var stream = unsafeMemoryInput(input)
-        type ReaderType = Reader(Format)
-        var reader = unpackArgs(init, [ReaderType, stream, params])
-        reader.readValue(RecordType)
-      except IOError:
-        raise (ref Defect)() # memory inputs cannot raise an IOError
-
-template decode*(
-    Format: type SerializationFormat,
-    input: openArray[byte],
-    RecordType: type,
-    params: varargs[untyped],
-): auto =
-  # TODO, this is dusplicated only due to a Nim bug:
-  # If `input` was `string|openArray[byte]`, it won't match `seq[byte]`
   mixin init, Reader
   block: # https://github.com/nim-lang/Nim/issues/22874
     {.noSideEffect.}:
