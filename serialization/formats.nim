@@ -39,12 +39,20 @@ template setWriter*(Format: type SerializationFormat, FormatWriter, PreferredOut
 
   template PreferredOutputType*(T: type Format): type = PreferredOutput
 
-template createFlavor*(ModifiedFormat: type SerializationFormat, FlavorName: untyped) =
+template createFlavor*(
+    ModifiedFormat: type SerializationFormat,
+    FlavorName: untyped,
+    mimeTypeName: static string = ""
+) =
   type FlavorName* = object of SerializationFormat
   template Reader*(T: type FlavorName): type = Reader(ModifiedFormat, FlavorName)
   template Writer*(T: type FlavorName): type = Writer(ModifiedFormat, FlavorName)
   template PreferredOutputType*(T: type FlavorName): type = PreferredOutputType(ModifiedFormat)
-  template mimeType*(T: type FlavorName): string = mimeType(ModifiedFormat)
+  template mimeType*(T: type FlavorName): string =
+    when mimeTypeName == "":
+      mimeType(ModifiedFormat)
+    else:
+      mimeTypeName
 
 template toObjectType(T: type): untyped =
   typeof(T()[])
