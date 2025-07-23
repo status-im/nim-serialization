@@ -1,7 +1,7 @@
 import
   unittest2,
   ../serialization,
-  stew/base64
+  ./otherencode
 
 {.used.}
 
@@ -24,7 +24,7 @@ suite "object serialization":
   test "readValue":
     let z = Xyz.decode("", TestObj)
     check z.number == 13
-    
+
     var r: XyzReader
     let x = r.readValue(TestObj)
     check x.number == 13
