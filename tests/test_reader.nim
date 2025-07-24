@@ -1,6 +1,7 @@
 import
   unittest2,
-  ../serialization
+  ../serialization,
+  ./otherencode
 
 {.used.}
 
@@ -23,7 +24,10 @@ suite "object serialization":
   test "readValue":
     let z = Xyz.decode("", TestObj)
     check z.number == 13
-    
+
     var r: XyzReader
     let x = r.readValue(TestObj)
     check x.number == 13
+
+# Make sure we don't encroach on other uses of "encode"
+discard Base64Pad.encode(@[byte 1, 2 ,3])

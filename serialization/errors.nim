@@ -4,6 +4,6 @@ type
   CustomSerializationError* = object of SerializationError
 
 method formatMsg*(err: ref SerializationError, filename: string): string
-                 {.gcsafe, base, raises: [Defect].} =
+                 {.gcsafe, base, raises: [].} =
   "Serialisation error while processing " & filename & ":" & err.msg
 
