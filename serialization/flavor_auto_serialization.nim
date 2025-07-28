@@ -27,10 +27,10 @@ func nimSrzGetTypeSignature*(T: type): string {.compileTime.} =
 
 template generateAutoSerializationAddon*(FLAVOR: typed) {.dirty.} =
   func getTable(F: type FLAVOR): CacheTable {.compileTime.} =
-    ## Each Flavor has its own njsTable, mapping signature hash to serialization flag
+    ## Each Flavor has its own nsrzTable, mapping signature hash to serialization flag
     const
-      njsTable = CacheTable("nsrzTable" & typetraits.name(F))
-    njsTable
+      nsrzTable = CacheTable("nsrzTable" & typetraits.name(F))
+    nsrzTable
 
   func getAutoSerialize(F: type FLAVOR, T: distinct type): Option[bool] {.compileTime.} =
     ## Is a type have registered automatic serialization flag?
@@ -49,8 +49,7 @@ template generateAutoSerializationAddon*(FLAVOR: typed) {.dirty.} =
       sig = nimSrzGetTypeSignature(T)
       table = F.getTable()
     if table.hasKey(sig):
-      var x = table[sig]
-      x.intVal = if val: 1 else: 0
+      table[sig].intVal = if val: 1 else: 0
     else:
       table[sig] = newLit(if val: 1 else: 0)
 
@@ -59,7 +58,6 @@ template generateAutoSerializationAddon*(FLAVOR: typed) {.dirty.} =
     when not((TM is TC) or (TM is distinct and distinctBase(TM) is TC)):
       {.error: "'" & typetraits.name(TM) & "' is not member of type class '" & typetraits.name(TC) & "'".}
 
-    # Somehow `valueOr` sometimes works, sometimes not
     let tmAuto = F.getAutoSerialize(TM)
     if tmAuto.isSome:
       return tmAuto.get
@@ -72,7 +70,6 @@ template generateAutoSerializationAddon*(FLAVOR: typed) {.dirty.} =
 
   func typeAutoSerialize*(F: type FLAVOR, TM: distinct type): bool {.compileTime.} =
     ## Check if a type has automatic serialization flag.
-    # Somehow `valueOr` sometimes works, sometimes not
     let tmv = F.getAutoSerialize(TM)
     if tmv.isSome:
       return tmv.get
