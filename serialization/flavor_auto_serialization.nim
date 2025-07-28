@@ -56,7 +56,7 @@ template generateAutoSerializationAddon*(FLAVOR: typed) {.dirty.} =
 
   func typeClassOrMemberAutoSerialize*(F: type FLAVOR, TC: distinct type, TM: distinct type): bool {.compileTime.} =
     ## Check whether a type or its parent type class have automatic serialization flag.
-    when TM isnot TC:
+    when not((TM is TC) or (TM is distinct and distinctBase(TM) is TC)):
       {.error: "'" & typetraits.name(TM) & "' is not member of type class '" & typetraits.name(TC) & "'".}
 
     # Somehow `valueOr` sometimes works, sometimes not
