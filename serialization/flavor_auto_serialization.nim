@@ -28,16 +28,13 @@ func nimSrzGetTypeSignature*(T: type): string {.compileTime.} =
 template generateAutoSerializationAddon*(FLAVOR: typed) {.dirty.} =
   func getTable(F: type FLAVOR): CacheTable {.compileTime.} =
     ## Each Flavor has its own nsrzTable, mapping signature hash to serialization flag
-    const
-      nsrzTable = CacheTable("nsrzTable" & typetraits.name(F))
-    nsrzTable
+    CacheTable("nsrzTable" & typetraits.name(F))
 
   func getAutoSerialize(F: type FLAVOR, T: distinct type): Option[bool] {.compileTime.} =
     ## Is a type have registered automatic serialization flag?
     let
-      table = F.getTable()
       sig = nimSrzGetTypeSignature(T)
-
+      table = F.getTable()      
     if table.hasKey(sig):
       return some(table[sig].boolVal)
     none(bool)
@@ -45,7 +42,7 @@ template generateAutoSerializationAddon*(FLAVOR: typed) {.dirty.} =
   func setAutoSerialize(F: type FLAVOR, T: distinct type, val: bool) {.compileTime.} =
     ## Set the automatic serialization flag for a type.
     ## User should use `automaticSerialization` template.
-    var
+    let
       sig = nimSrzGetTypeSignature(T)
       table = F.getTable()
     if table.hasKey(sig):
