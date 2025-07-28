@@ -11,7 +11,8 @@ import
   std/[macrocache, macros, typetraits, options]
 
 export
-  macrocache, macros, typetraits, options
+  macrocache, typetraits, options,
+  macros.newLit, macros.`intVal=`, macros.boolVal
 
 macro nimSrzCalculateSignature(T: typed): untyped =
   ## Generate signature hash from given type.
