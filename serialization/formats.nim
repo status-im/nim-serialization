@@ -1,5 +1,9 @@
 import
-  std/[typetraits, macros]
+  std/[typetraits, macros],
+  ./flavor_auto_serialization
+
+export
+  flavor_auto_serialization
 
 type
   DefaultFlavor* = object
