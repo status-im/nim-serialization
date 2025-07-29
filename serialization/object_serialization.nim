@@ -226,7 +226,8 @@ proc makeFieldReadersTable(RecordType, ReaderType: distinct type,
       error("Case object `" & $RecordType &
             "` must have custom `readValue` for `" & $ReaderType & "`")
 
-    proc readField(obj: var RecordType, reader: var ReaderType) =
+    proc readField(obj: var RecordType, reader: var ReaderType)
+                    {.gcsafe, nimcall, raises: [IOError, SerializationError].} =
       mixin readValue
 
       when RecordType is tuple:
