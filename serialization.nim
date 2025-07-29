@@ -23,7 +23,7 @@ template encode*(
         writeValue writer, value
         s.getOutput PreferredOutputType(Format)
       except IOError:
-        raise (ref Defect)() # a memoryOutput cannot have an IOError
+        raiseAssert "memoryOutput doesn't raise IOError"
 
 # TODO Nim cannot make sense of this initialization by var param?
 proc readValue*(
@@ -54,7 +54,19 @@ template decode*(
         var reader = unpackArgs(init, [ReaderType, stream, params])
         reader.readValue(RecordType)
       except IOError:
-        raise (ref Defect)() # memory inputs cannot raise an IOError
+        when not defined(gcDestructors):
+          # TODO https://github.com/nim-lang/Nim/issues/25080
+          # touch the input to avoid gc issues
+          # conveniently, the exception handler must outlive the `reader`
+          # This defect will never actually be raised so `msg` doesn't matter
+          # but we want to keep the codegen relatively short since this is a
+          # template
+          raiseAssert(
+            if input.len > 0: "memory input doesn't raise IOError"
+            else: "memory input doesn't raise IOError 0"
+          )
+        else:
+          raiseAssert "memory input doesn't raise IOError"
 
 template loadFile*(
     Format: type SerializationFormat,
