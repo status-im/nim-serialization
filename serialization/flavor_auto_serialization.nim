@@ -22,8 +22,7 @@ macro nimSrzCalculateSignature(T: typed): untyped =
 func nimSrzGetTypeSignature*(T: type): string {.compileTime.} =
   ## Force the compiler to cache the instance of this generic
   ## function, and get the same signature from every where we call it.
-  type TT = proc(_: T)
-  nimSrzCalculateSignature(TT)
+  nimSrzCalculateSignature(T)
 
 template generateAutoSerializationAddon*(FLAVOR: typed) {.dirty.} =
   func getTable(F: type FLAVOR): CacheTable {.compileTime.} =
@@ -34,7 +33,7 @@ template generateAutoSerializationAddon*(FLAVOR: typed) {.dirty.} =
     ## Is a type have registered automatic serialization flag?
     let
       sig = nimSrzGetTypeSignature(T)
-      table = F.getTable()      
+      table = F.getTable()
     if table.hasKey(sig):
       return some(table[sig].boolVal)
     none(bool)
