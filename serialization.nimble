@@ -1,7 +1,7 @@
 mode = ScriptMode.Verbose
 
 packageName   = "serialization"
-version       = "0.4.0"
+version       = "0.4.2"
 author        = "Status Research & Development GmbH"
 description   = "A modern and extensible serialization framework for Nim"
 license       = "Apache License 2.0"
