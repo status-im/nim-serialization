@@ -163,11 +163,13 @@ func isCaseObject*(T: type): bool {.compileTime.} =
     newLit(false)
 
 type
-  FieldReader*[RecordType, Reader] = tuple[
-    fieldName: string,
-    reader: proc (rec: var RecordType, reader: var Reader)
-                 {.gcsafe, nimcall, raises: [SerializationError, Defect].}
-  ]
+  FieldReader*[RecordType, Reader] =
+    tuple[
+      fieldName: string,
+      reader: proc(rec: var RecordType, reader: var Reader) {.
+        gcsafe, nimcall, raises: [IOError, SerializationError]
+      .},
+    ]
 
   FieldReadersTable*[RecordType, Reader] = openArray[FieldReader[RecordType, Reader]]
 
@@ -224,31 +226,17 @@ proc makeFieldReadersTable(RecordType, ReaderType: distinct type,
       error("Case object `" & $RecordType &
             "` must have custom `readValue` for `" & $ReaderType & "`")
 
-    proc readField(obj: var RecordType, reader: var ReaderType)
-                  {.gcsafe, nimcall, raises: [SerializationError].} =
-
+    proc readField(obj: var RecordType, reader: var ReaderType) =
       mixin readValue
 
       when RecordType is tuple:
         const i = fieldName.parseInt
-
-      try:
-        when RecordType is tuple:
-          reader.readValue obj[i]
-        else:
-          type F = FieldTag[RecordType, realFieldName]
-          {.push hint[ConvFromXtoItselfNotNeeded]: off.}
-          field(obj, realFieldName) = readFieldIMPL(F, reader)
-          {.pop.}
-      except SerializationError as err:
-        raise err
-      except CatchableError as err:
-        type LocalRecordType = `RecordType` # workaround to allow compile time evaluation
-        reader.handleReadException(
-          LocalRecordType,
-          fieldName,
-          when RecordType is tuple: obj[i] else: field(obj, realFieldName),
-          err)
+        reader.readValue obj[i]
+      else:
+        type F = FieldTag[RecordType, realFieldName]
+        {.push hint[ConvFromXtoItselfNotNeeded]: off.}
+        field(obj, realFieldName) = readFieldIMPL(F, reader)
+        {.pop.}
 
     result[idx] = (fieldName, readField)
     inc idx
