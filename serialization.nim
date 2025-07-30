@@ -3,7 +3,9 @@ import
   faststreams/[inputs, outputs],
   ./serialization/[errors, formats, macros, object_serialization]
 
-export inputs, outputs, object_serialization, errors, formats
+export
+  inputs, outputs, object_serialization, errors, formats, macros.forward,
+  macros.noraiseshint
 
 template encode*(
     Format: type SerializationFormat, value: auto, params: varargs[untyped]
@@ -27,7 +29,7 @@ template encode*(
 # TODO Nim cannot make sense of this initialization by var param?
 proc readValue*(
     reader: var auto, T: type
-): T {.gcsafe, raises: [SerializationError, IOError].} =
+): T {.raises: [SerializationError, IOError], noraiseshint.} =
   {.warning[ProveInit]: false.}
   mixin readValue
   result = default(T)
@@ -35,7 +37,8 @@ proc readValue*(
   {.warning[ProveInit]: true.}
 
 # force v to be converted from typedesc[T] to T
-macro instantiate(v: type): type = v
+macro instantiate(v: type): type =
+  v
 
 template decode*[InputType: string | openArray[char] | seq[byte] | openArray[byte]](
     Format: type SerializationFormat,
@@ -51,11 +54,12 @@ template decode*[InputType: string | openArray[char] | seq[byte] | openArray[byt
   type ReturnType = instantiate(RecordType)
   proc decodeImpl(
       input: InputType
-  ): ReturnType {.nimcall, gensym, raises: [SerializationError], forward: (params).} =
+  ): ReturnType {.
+      nimcall, gensym, raises: [SerializationError], forward: (params), noraiseshint
+  .} =
     mixin init, Reader, readValue
     type ReaderType = Reader(Format)
 
-    result = default(ReturnType)
     var stream = unsafeMemoryInput(input)
     try:
       # We assume that there are no side-effects here, because we are
