@@ -35,12 +35,11 @@ proc readValue*(
   reader.readValue(result)
   {.warning[ProveInit]: true.}
 
-template decode*(
+template decodeImpl(
     Format: type SerializationFormat,
-    input: string|openArray[char]|seq[byte]|openArray[byte],
+    input: auto,
     RecordType: type,
-    params: varargs[untyped],
-): auto =
+    params: varargs[untyped]): auto =
   mixin init, Reader
   block: # https://github.com/nim-lang/Nim/issues/22874
     {.noSideEffect.}:
@@ -67,6 +66,29 @@ template decode*(
           )
         else:
           raiseAssert "memory input doesn't raise IOError"
+
+template decode*(
+    Format: type SerializationFormat,
+    input: string,
+    RecordType: type,
+    params: varargs[untyped]): auto =
+  decodeImpl(Format, input, RecordType, params)
+
+template decode*(
+    Format: type SerializationFormat,
+    input: openArray[char],
+    RecordType: type,
+    params: varargs[untyped]): auto =
+  decodeImpl(Format, input, RecordType, params)
+
+template decode*(
+    Format: type SerializationFormat,
+    input: openArray[byte],
+    RecordType: type,
+    params: varargs[untyped]): auto =
+  # TODO, this is duplicated only due to a Nim bug:
+  # If `input` was `string|openArray[byte]`, it won't match `seq[byte]`
+  decodeImpl(Format, input, RecordType, params)
 
 template loadFile*(
     Format: type SerializationFormat,
