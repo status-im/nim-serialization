@@ -64,10 +64,17 @@ template decode*(
 
 template decode*(
     Format: type SerializationFormat,
+    input: openArray[char],
+    RecordType: type,
+    params: varargs[untyped]): auto =
+  decodeImpl(Format, input, RecordType, params)
+
+template decode*(
+    Format: type SerializationFormat,
     input: openArray[byte],
     RecordType: type,
     params: varargs[untyped]): auto =
-  # TODO, this is dusplicated only due to a Nim bug:
+  # TODO, this is duplicated only due to a Nim bug:
   # If `input` was `string|openArray[byte]`, it won't match `seq[byte]`
   decodeImpl(Format, input, RecordType, params)
 
