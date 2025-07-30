@@ -14,17 +14,17 @@ export
   macrocache, typetraits, options,
   macros.newLit, macros.`intVal=`, macros.boolVal
 
-macro nimSrzCalculateSignature(T: typed): untyped =
+macro nimSrzCalculateSignature*(T: typed): untyped =
   ## Generate signature hash from given type.
   doAssert(T.typeKind == ntyTypeDesc)
   result = newLit(signatureHash(T))
 
-func nimSrzGetTypeSignature*(T: type): string {.compileTime.} =
-  ## Force the compiler to cache the instance of this generic
-  ## function, and get the same signature from every where we call it.
-  nimSrzCalculateSignature(T)
-
 template generateAutoSerializationAddon*(FLAVOR: typed) {.dirty.} =
+  func nimSrzGetTypeSignature(F: type FLAVOR, T: distinct type): string {.compileTime.} =
+    ## Force the compiler to cache the instance of this generic
+    ## function, and get the same signature from every where we call it.
+    nimSrzCalculateSignature(T)
+
   func getTable(F: type FLAVOR): CacheTable {.compileTime.} =
     ## Each Flavor has its own nsrzTable, mapping signature hash to serialization flag
     CacheTable("nsrzTable" & typetraits.name(F))
@@ -32,7 +32,7 @@ template generateAutoSerializationAddon*(FLAVOR: typed) {.dirty.} =
   func getAutoSerialize(F: type FLAVOR, T: distinct type): Option[bool] {.compileTime.} =
     ## Is a type have registered automatic serialization flag?
     let
-      sig = nimSrzGetTypeSignature(T)
+      sig = F.nimSrzGetTypeSignature(T)
       table = F.getTable()
     if table.hasKey(sig):
       return some(table[sig].boolVal)
@@ -42,12 +42,13 @@ template generateAutoSerializationAddon*(FLAVOR: typed) {.dirty.} =
     ## Set the automatic serialization flag for a type.
     ## User should use `automaticSerialization` template.
     let
-      sig = nimSrzGetTypeSignature(T)
+      sig = F.nimSrzGetTypeSignature(T)
       table = F.getTable()
     if table.hasKey(sig):
       table[sig].intVal = if val: 1 else: 0
-    else:
-      table[sig] = newLit(if val: 1 else: 0)
+    elif val:
+      # Do not create newLit(false), none also return false in `getAutoSerialize`
+      table[sig] = newLit(1)
 
   func typeClassOrMemberAutoSerialize*(F: type FLAVOR, TC: distinct type, TM: distinct type): bool {.compileTime.} =
     ## Check whether a type or its parent type class have automatic serialization flag.
