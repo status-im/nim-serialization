@@ -5,7 +5,7 @@ import
 
 export
   inputs, outputs, object_serialization, errors, formats, macros.forward,
-  macros.noraiseshint
+  macros.noxcannotraisey, macros.noproveinit
 
 template encode*(
     Format: type SerializationFormat, value: auto, params: varargs[untyped]
@@ -29,12 +29,9 @@ template encode*(
 # TODO Nim cannot make sense of this initialization by var param?
 proc readValue*(
     reader: var auto, T: type
-): T {.raises: [SerializationError, IOError], noraiseshint.} =
-  {.warning[ProveInit]: false.}
+): T {.raises: [SerializationError, IOError], noxcannotraisey, noproveinit.} =
   mixin readValue
-  result = default(T)
   reader.readValue(result)
-  {.warning[ProveInit]: true.}
 
 # force v to be converted from typedesc[T] to T
 macro instantiate(v: type): type =
@@ -55,7 +52,12 @@ template decode*[InputType: string | openArray[char] | seq[byte] | openArray[byt
   proc decodeImpl(
       input: InputType
   ): ReturnType {.
-      nimcall, gensym, raises: [SerializationError], forward: (params), noraiseshint
+      nimcall,
+      gensym,
+      raises: [SerializationError],
+      forward: (params),
+      noxcannotraisey,
+      noproveinit
   .} =
     mixin init, Reader, readValue
     type ReaderType = Reader(Format)
@@ -68,7 +70,7 @@ template decode*[InputType: string | openArray[char] | seq[byte] | openArray[byt
       # faststreams may be reading from a file or a network device.
       {.noSideEffect.}:
         var reader = unpackForwarded(init, [ReaderType, stream, params])
-        reader.readValue(result)
+        reader.readValue(ReturnType)
     except IOError:
       when not defined(gcDestructors):
         # TODO https://github.com/nim-lang/Nim/issues/25080

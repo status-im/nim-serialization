@@ -19,14 +19,29 @@ iterator usefulArgs(args: NimNode): NimNode =
       continue
     yield arg
 
-macro noraiseshint*(prc: untyped): untyped =
+macro noxcannotraisey*(prc: untyped): untyped =
   # Using `{.pragma: noraiseshint, ....}` doesn't work in a template because of module
   # export issues
   when (NimMajor, NimMinor) >= (2, 0):
     if prc.pragma.kind == nnkEmpty:
       prc.pragma = nnkPragma.newTree()
 
-    prc.pragma.add nnkExprColonExpr.newTree(nnkBracketExpr.newTree(ident "hint", ident"XCannotRaiseY"), ident"off")
+    prc.pragma.add nnkExprColonExpr.newTree(
+      nnkBracketExpr.newTree(ident "hint", ident"XCannotRaiseY"), ident"off"
+    )
+
+  prc
+
+macro noproveinit*(prc: untyped): untyped =
+  # Using `{.pragma: noraiseshint, ....}` doesn't work in a template because of module
+  # export issues
+  when (NimMajor, NimMinor) >= (2, 0):
+    if prc.pragma.kind == nnkEmpty:
+      prc.pragma = nnkPragma.newTree()
+
+    prc.pragma.add nnkExprColonExpr.newTree(
+      nnkBracketExpr.newTree(ident "warning", ident"ProveInit"), ident"off"
+    )
 
   prc
 
@@ -57,7 +72,6 @@ macro unpackForwarded*(callee: untyped, args: untyped): untyped =
   for arg in usefulArgs(args):
     if arg.kind == nnkArgList:
       for subarg in usefulArgs(arg):
-
         if subarg.kind == nnkExprEqExpr:
           result.add nnkExprEqExpr.newTree(ident $subarg[0], ident $subarg[0])
         else:
