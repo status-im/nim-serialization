@@ -26,7 +26,6 @@ template encode*(
       except IOError:
         raiseAssert "memoryOutput doesn't raise IOError"
 
-# TODO Nim cannot make sense of this initialization by var param?
 proc readValue*(
     reader: var auto, T: type
 ): T {.raises: [SerializationError, IOError], noxcannotraisey, noproveinit.} =
@@ -70,7 +69,7 @@ template decode*[InputType: string | openArray[char] | seq[byte] | openArray[byt
       # faststreams may be reading from a file or a network device.
       {.noSideEffect.}:
         var reader = unpackForwarded(init, [ReaderType, stream, params])
-        reader.readValue(ReturnType)
+        reader.readValue(result)
     except IOError:
       when not defined(gcDestructors):
         # TODO https://github.com/nim-lang/Nim/issues/25080
