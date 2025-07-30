@@ -36,7 +36,7 @@ proc readValue*(
 macro instantiate(v: type): type =
   v
 
-template decode*[InputType: string | openArray[char] | seq[byte] | openArray[byte]](
+template decodeImpl[InputType](
     Format: type SerializationFormat,
     inputParam: InputType,
     RecordType: type,
@@ -87,6 +87,29 @@ template decode*[InputType: string | openArray[char] | seq[byte] | openArray[byt
         raiseAssert "memory input doesn't raise IOError"
 
   unpackForwarded(decodeImpl, [inputParam, params])
+
+template decode*(
+    Format: type SerializationFormat,
+    inputParam: string,
+    RecordType: type,
+    params: varargs[untyped]): auto =
+  decodeImpl(Format, input, RecordType, params)
+
+template decode*(
+    Format: type SerializationFormat,
+    input: openArray[char],
+    RecordType: type,
+    params: varargs[untyped]): auto =
+  decodeImpl(Format, input, RecordType, params)
+
+template decode*(
+    Format: type SerializationFormat,
+    input: openArray[byte],
+    RecordType: type,
+    params: varargs[untyped]): auto =
+  # TODO, this is duplicated only due to a Nim bug:
+  # If `input` was `string|openArray[byte]`, it won't match `seq[byte]`
+  decodeImpl(Format, input, RecordType, params)
 
 template loadFile*(
     Format: type SerializationFormat,
