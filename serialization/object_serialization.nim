@@ -1,3 +1,5 @@
+{.push raises: [], gcsafe.}
+
 import
   std/typetraits,
   stew/shims/macros, stew/objects,
