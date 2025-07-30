@@ -1,8 +1,7 @@
 import
   std/typetraits,
-  stew/shims/macros,
   faststreams/[inputs, outputs],
-  ./serialization/[object_serialization, errors, formats]
+  ./serialization/[errors, formats, macros, object_serialization]
 
 export inputs, outputs, object_serialization, errors, formats
 
@@ -35,38 +34,54 @@ proc readValue*(
   reader.readValue(result)
   {.warning[ProveInit]: true.}
 
-template decode*(
+# force v to be converted from typedesc[T] to T
+macro instantiate(v: type): type = v
+
+template decode*[InputType: string | openArray[char] | seq[byte] | openArray[byte]](
     Format: type SerializationFormat,
-    input: string|openArray[char]|seq[byte]|openArray[byte],
+    inputParam: InputType,
     RecordType: type,
     params: varargs[untyped],
 ): auto =
-  mixin init, Reader
-  block: # https://github.com/nim-lang/Nim/issues/22874
-    {.noSideEffect.}:
+  # Our workaround below for the refc bugs relies on `inputParam` being being
+  # evaluated once only - by turning it into a proc parameter, nim will
+  # avoid copying it and at the same time, its lifetime will (hopefully) extend
+  # past any usage in the unsafe memory input - crucially, proc parameters are
+  # also compatible with `openArray`
+  type ReturnType = instantiate(RecordType)
+  proc decodeImpl(
+      input: InputType
+  ): ReturnType {.nimcall, gensym, raises: [SerializationError], forward: (params).} =
+    mixin init, Reader, readValue
+    type ReaderType = Reader(Format)
+
+    result = default(ReturnType)
+    var stream = unsafeMemoryInput(input)
+    try:
       # We assume that there are no side-effects here, because we are
       # using a `memoryInput`. The computed side-effects are coming
       # from the fact that the dynamic dispatch mechanisms used in
       # faststreams may be reading from a file or a network device.
-      try:
-        var stream = unsafeMemoryInput(input)
-        type ReaderType = Reader(Format)
-        var reader = unpackArgs(init, [ReaderType, stream, params])
-        reader.readValue(RecordType)
-      except IOError:
-        when not defined(gcDestructors):
-          # TODO https://github.com/nim-lang/Nim/issues/25080
-          # touch the input to avoid gc issues
-          # conveniently, the exception handler must outlive the `reader`
-          # This defect will never actually be raised so `msg` doesn't matter
-          # but we want to keep the codegen relatively short since this is a
-          # template
-          raiseAssert(
-            if input.len > 0: "memory input doesn't raise IOError"
-            else: "memory input doesn't raise IOError 0"
-          )
-        else:
-          raiseAssert "memory input doesn't raise IOError"
+      {.noSideEffect.}:
+        var reader = unpackForwarded(init, [ReaderType, stream, params])
+        reader.readValue(result)
+    except IOError:
+      when not defined(gcDestructors):
+        # TODO https://github.com/nim-lang/Nim/issues/25080
+        # Touch the input to avoid GC issues in case `decodeImpl` is inlined
+        # Conveniently, the exception handler must outlive the `reader`
+        # This defect will never actually be raised so `msg` doesn't matter
+        # but we want to keep the codegen relatively short to avoid bloat
+        raiseAssert(
+          if input.len > 0:
+            "memory input doesn't raise IOError"
+          else:
+            "memory input doesn't raise IOError 0"
+        )
+      else:
+        raiseAssert "memory input doesn't raise IOError"
+
+  unpackForwarded(decodeImpl, [inputParam, params])
 
 template loadFile*(
     Format: type SerializationFormat,
