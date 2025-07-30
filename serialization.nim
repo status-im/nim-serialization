@@ -93,23 +93,23 @@ template decode*(
     inputParam: string,
     RecordType: type,
     params: varargs[untyped]): auto =
-  decodeImpl(Format, input, RecordType, params)
+  decodeImpl(Format, inputParam, RecordType, params)
 
 template decode*(
     Format: type SerializationFormat,
-    input: openArray[char],
+    inputParam: openArray[char],
     RecordType: type,
     params: varargs[untyped]): auto =
-  decodeImpl(Format, input, RecordType, params)
+  decodeImpl(Format, inputParam, RecordType, params)
 
 template decode*(
     Format: type SerializationFormat,
-    input: openArray[byte],
+    inputParam: openArray[byte],
     RecordType: type,
     params: varargs[untyped]): auto =
   # TODO, this is duplicated only due to a Nim bug:
   # If `input` was `string|openArray[byte]`, it won't match `seq[byte]`
-  decodeImpl(Format, input, RecordType, params)
+  decodeImpl(Format, inputParam, RecordType, params)
 
 template loadFile*(
     Format: type SerializationFormat,
