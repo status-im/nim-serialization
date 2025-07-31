@@ -48,11 +48,11 @@ template decodeImpl[InputType](
   # past any usage in the unsafe memory input - crucially, proc parameters are
   # also compatible with `openArray`
   type ReturnType = instantiate(RecordType)
-  proc decodeImpl(
+  # TODO `proc decodeProc .. {.gensym.} causes duplicate symbols
+  let decodeProc = proc(
       input: InputType
   ): ReturnType {.
       nimcall,
-      gensym,
       raises: [SerializationError],
       forward: (params),
       noxcannotraisey,
@@ -86,27 +86,30 @@ template decodeImpl[InputType](
       else:
         raiseAssert "memory input doesn't raise IOError"
 
-  unpackForwarded(decodeImpl, [inputParam, params])
+  unpackForwarded(decodeProc, [inputParam, params])
 
 template decode*(
     Format: type SerializationFormat,
     inputParam: string,
     RecordType: type,
-    params: varargs[untyped]): auto =
+    params: varargs[untyped],
+): auto =
   decodeImpl(Format, inputParam, RecordType, params)
 
 template decode*(
     Format: type SerializationFormat,
     inputParam: openArray[char],
     RecordType: type,
-    params: varargs[untyped]): auto =
+    params: varargs[untyped],
+): auto =
   decodeImpl(Format, inputParam, RecordType, params)
 
 template decode*(
     Format: type SerializationFormat,
     inputParam: openArray[byte],
     RecordType: type,
-    params: varargs[untyped]): auto =
+    params: varargs[untyped],
+): auto =
   # TODO, this is duplicated only due to a Nim bug:
   # If `input` was `string|openArray[byte]`, it won't match `seq[byte]`
   decodeImpl(Format, inputParam, RecordType, params)

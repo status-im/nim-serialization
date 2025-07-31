@@ -56,9 +56,9 @@ macro forward*(args, prc: untyped): untyped =
       # need $ here to ensure it's a freshly looked up identifier, in case there
       # are symbol conflicts - would be nice if `unpackForwarded` could reuse
       # this exact ident instance ..
-      prc.params.add nnkIdentDefs.newTree(ident $arg[0], autoKeyword, newEmptyNode())
+      prc.params.add nnkIdentDefs.newTree(ident $arg[0], nnkCall.newTree(ident "typeof", arg[1]), newEmptyNode())
     else:
-      prc.params.add nnkIdentDefs.newTree(ident "fwd" & $i, autoKeyword, newEmptyNode())
+      prc.params.add nnkIdentDefs.newTree(ident "fwd" & $i, nnkCall.newTree(ident "typeof", arg[0]), newEmptyNode())
     i += 1
   prc
 
