@@ -48,11 +48,11 @@ template decodeImpl[InputType](
   # past any usage in the unsafe memory input - crucially, proc parameters are
   # also compatible with `openArray`
   type ReturnType = instantiate(RecordType)
-  proc decodeProc(
+  # TODO `proc decodeProc .. {.gensym.} causes duplicate symbols
+  let decodeProc = proc(
       input: InputType
   ): ReturnType {.
       nimcall,
-      gensym,
       raises: [SerializationError],
       forward: (params),
       noxcannotraisey,
