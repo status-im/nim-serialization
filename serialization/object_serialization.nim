@@ -218,7 +218,7 @@ proc makeFieldReadersTable(RecordType, ReaderType: distinct type,
                            numFields: static[int]):
                            array[numFields, FieldReader[RecordType, ReaderType]] =
   mixin enumAllSerializedFields, readFieldIMPL, handleReadException
-  var idx = 0
+  var idx {.used.} = 0 # used in case there are no fields..
 
   enumAllSerializedFields(RecordType):
     if fieldCaseDiscriminator != "":
