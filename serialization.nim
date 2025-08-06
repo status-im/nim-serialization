@@ -32,9 +32,16 @@ proc readValue*(
   mixin readValue
   reader.readValue(result)
 
-# force v to be converted from typedesc[T] to T
-macro instantiate(v: type): type =
-  v
+macro unpeel(t: untyped): untyped =
+  # strip typedesc from typedesc[T] - this is a backwards-compatibility hack for
+  # code in the wild that boils down to something like this which probably
+  # only should be supported for backwards-compatibility reasons:
+  # decode(..., typedesc[int])
+
+  if t.kind == nnkBracketExpr and t[0].eqIdent("typedesc"):
+    t[1]
+  else:
+    t
 
 template decodeImpl[InputType](
     Format: type SerializationFormat,
@@ -47,11 +54,10 @@ template decodeImpl[InputType](
   # avoid copying it and at the same time, its lifetime will (hopefully) extend
   # past any usage in the unsafe memory input - crucially, proc parameters are
   # also compatible with `openArray`
-  type ReturnType = instantiate(RecordType)
   # TODO `proc decodeProc .. {.gensym.} causes duplicate symbols
   let decodeProc = proc(
       input: InputType
-  ): ReturnType {.
+  ): unpeel(RecordType) {.
       nimcall,
       raises: [SerializationError],
       forward: (params),
