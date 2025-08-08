@@ -77,20 +77,18 @@ template decodeImpl[InputType](
         var reader = unpackForwarded(init, [ReaderType, stream, params])
         reader.readValue(result)
     except IOError:
-      when not defined(gcDestructors):
-        # TODO https://github.com/nim-lang/Nim/issues/25080
-        # Touch the input to avoid GC issues in case `decodeImpl` is inlined
-        # Conveniently, the exception handler must outlive the `reader`
-        # This defect will never actually be raised so `msg` doesn't matter
-        # but we want to keep the codegen relatively short to avoid bloat
-        raiseAssert(
-          if input.len > 0:
-            "memory input doesn't raise IOError"
-          else:
-            "memory input doesn't raise IOError 0"
-        )
-      else:
-        raiseAssert "memory input doesn't raise IOError"
+      raiseAssert "memory input doesn't raise IOError"
+
+    when not defined(gcDestructors):
+      # TODO https://github.com/nim-lang/Nim/issues/25080
+      # Touch the input to avoid GC issues in case `decodeImpl` is inlined
+      # Conveniently, the exception handler must outlive the `reader`
+      # This defect will never actually be raised so `msg` doesn't matter
+      # but we want to keep the codegen relatively short to avoid bloat
+      if input.len < 0:
+        # Adding the most meaningless check possible, to avoid collection
+        # Something's terribly wrong if we're reaching this point
+        raiseAssert "negative memory input length"
 
   unpackForwarded(decodeProc, [inputParam, params])
 
