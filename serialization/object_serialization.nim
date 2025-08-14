@@ -221,12 +221,12 @@ proc makeFieldReadersTable(RecordType, ReaderType: distinct type,
   var idx {.used.} = 0 # used in case there are no fields..
 
   enumAllSerializedFields(RecordType):
-    if fieldCaseDiscriminator != "":
+    when fieldCaseDiscriminator != "":
       # We don't automatically generate readers for case values since doing so
       # generically would require parsing into temporaries and creating the
       # instance afterwards which is complex
-      error("Case object `" & $RecordType &
-            "` must have custom `readValue` for `" & $ReaderType & "`")
+      static:
+        error "Case object `" & $RecordType & "` must have custom `readValue` for `" & $ReaderType & "`"
 
     proc readField(obj: var RecordType, reader: var ReaderType)
                     {.gcsafe, nimcall, raises: [IOError, SerializationError].} =
