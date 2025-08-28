@@ -120,7 +120,36 @@ Returns the number of serialized fields in the specified format.
 
 ### Implementing Readers
 
+Implementing a serialization reader is done by overloading `readValue`:
+
+```nim
+proc readValue(r: var MyReader, value: var MyType) {.raises: [IOError, SerializationError].} =
+  # Read the underlying "raw" format
+  var s = r.readValue(string)
+  try:
+    # Convert the raw format to the given type using a type-specific converter
+    value = MyType.parse(s)
+  except ValueError as exc:
+    r.raiseUnexpectedValue(exc.msg)
+```
+
+A `readValue` implementation must always be able to parse the output of its
+corresponding `writeValue`!
+
 ### Implementing Writers
+
+Writers are implemented by overloading `writeValue` for the writer and value
+types - often, writers will forward "complex" types to their simpler, underlying
+values in the format.
+
+```nim
+proc write(w: var MyWriter, value: MyType) {.raises: [IOError].} =
+  # Write the value as a string, assuming that `$` can be parsed with `parse`
+  w.writeValue($value)
+```
+
+A `writeValue` implementation must always output a format that the corresponding
+`readValue` understands!
 
 ## Contributing
 
