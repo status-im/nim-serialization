@@ -11,14 +11,21 @@ type
 
   XyzReader = object
 
-proc readValue(r: XyzReader, val: var TestObj) =
-  val.number = 13
+  Distinct = distinct TestObj
+
+proc readValue(r: XyzReader, value: var TestObj) =
+  value.number = 13
 
 proc init(T: type XyzReader, stream: InputStream): T =
   XyzReader()
 
 serializationFormat Xyz
 Xyz.setReader XyzReader
+
+serializationFormat Abc
+serializationFormat Def
+
+Distinct.serializesAsBase(Xyz, Abc, Def)
 
 template someType: type =
   typedesc[TestObj]
@@ -38,6 +45,11 @@ suite "object serialization":
       i += 1
     discard Xyz.decode(myInput().toOpenArrayByte(0, -1), someType())
     check i == 1
+
+  test "serializesAsBase picks up base serializer":
+    let z = Xyz.decode("", Distinct)
+    check TestObj(z).number == 13
+
 
 # Make sure we don't encroach on other uses of "encode"
 discard Base64Pad.encode(@[byte 1, 2 ,3])

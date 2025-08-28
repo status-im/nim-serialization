@@ -6,8 +6,6 @@ export macros
 # function parameters - the parameters are passed on as-is using `auto` as type
 # TODO what about `var`?
 
-let autoKeyword {.compileTime.} = ident"auto"
-
 iterator usefulArgs(args: NimNode): NimNode =
   for arg in args:
     let arg =

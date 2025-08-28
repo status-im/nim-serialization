@@ -158,7 +158,7 @@ template saveFile*(
   finally:
     close stream
 
-template borrowSerialization*(Alias: type) {.dirty.} =
+template borrowSerialization*(Alias: type) {.dirty, deprecated: "serializesAsBase".} =
   bind distinctBase
 
   proc writeValue*[Writer](writer: var Writer, value: Alias) {.raises: [IOError].} =
@@ -169,7 +169,7 @@ template borrowSerialization*(Alias: type) {.dirty.} =
     mixin readValue
     value = Alias reader.readValue(distinctBase Alias)
 
-template borrowSerialization*(Alias: type, OriginalType: type) {.dirty.} =
+template borrowSerialization*(Alias: type, OriginalType: type) {.dirty, deprecated: "serializesAsBase".} =
   proc writeValue*[Writer](writer: var Writer, value: Alias) {.raises: [IOError].} =
     mixin writeValue
     writeValue(writer, OriginalType value)
@@ -179,23 +179,36 @@ template borrowSerialization*(Alias: type, OriginalType: type) {.dirty.} =
     value = Alias reader.readValue(OriginalType)
 
 template serializesAsBase*(SerializedType: type, Format: type SerializationFormat) =
-  mixin Reader, Writer
+  mixin Reader, Writer, readValue, writeValue
 
-  type ReaderType = Reader(Format)
-  type WriterType = Writer(Format)
+  when compiles(Writer(Format)):
+    type WriterType = Writer(Format)
+    template writeValue*(w: var WriterType, value: SerializedType) =
+      mixin writeValue
+      writeValue(w, distinctBase value)
 
-  template writeValue*(writer: var WriterType, value: SerializedType) =
-    mixin writeValue
-    writeValue(writer, distinctBase value)
+  when compiles(Reader(Format)):
+    type ReaderType = Reader(Format)
+    template readValue*(r: var ReaderType, value: var SerializedType) =
+      mixin readValue
+      readValue(r, distinctBase value)
 
-  template readValue*(reader: var ReaderType, value: var SerializedType) =
-    mixin readValue
-    value = SerializedType reader.readValue(distinctBase SerializedType)
+macro serializesAsBase*(SerializedType: type, Format: type SerializationFormat, Format2: type SerializationFormat, Formats: varargs[untyped]) =
+  let sab = bindSym"serializesAsBase"
 
-macro serializesAsBaseIn*(SerializedType: type, Formats: varargs[untyped]) =
+  result = newStmtList()
+  result.add newCall(sab, SerializedType, Format)
+  result.add newCall(sab, SerializedType, Format2)
+
+  for Fmt in Formats:
+    result.add newCall(sab, SerializedType, Fmt)
+
+macro serializesAsBaseIn*(SerializedType: type, Formats: varargs[untyped]) {.deprecated: "serializesAsBase".} =
+  let sab = bindSym"serializesAsBase"
+
   result = newStmtList()
   for Fmt in Formats:
-    result.add newCall(bindSym"serializesAsBase", SerializedType, Fmt)
+    result.add newCall(sab, SerializedType, Fmt)
 
 template readValue*(
     stream: InputStream,
