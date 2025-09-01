@@ -74,9 +74,9 @@ func splitId(node: NimNode): tuple[id: NimNode, isExported: bool] =
   case node.kind
   of nnkPostfix:
     doAssert $node[0] == "*"
-    (node[1], true)
+    return (node[1], true)
   of nnkIdent:
-    (node, false)
+    return (node, false)
   else:
     error "unexpected discriminator identifier", node
 
