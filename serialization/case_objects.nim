@@ -29,6 +29,13 @@
 import std/macros
 export macros
 
+when (NimMajor, NimMinor) < (2, 0):
+  # https://nim-lang.org/docs/manual_experimental.html#extended-macro-pragmas
+  # For now, macros can return an unused type definition where the right-hand
+  # node is of kind `nnkStmtListType`. Declarations in this node will be
+  # attached to the same scope as the parent scope of the type section.
+  {.error: "`allowEnumWithoutZero` requires extended macro pragmas (Nim 2.0+)".}
+
 func isSupportedAsDiscriminator(T: typedesc): bool =
   when compiles(T.low.int):
     T.low.int == 0
@@ -74,9 +81,9 @@ func splitId(node: NimNode): tuple[id: NimNode, isExported: bool] =
   case node.kind
   of nnkPostfix:
     doAssert $node[0] == "*"
-    return (node[1], true)
+    (node[1], true)
   of nnkIdent:
-    return (node, false)
+    (node, false)
   else:
     error "unexpected discriminator identifier", node
 
