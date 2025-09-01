@@ -127,7 +127,7 @@ macro allowEnumWithoutZero*(typ: untyped{nkTypeDef}): untyped =
     let
       PatchedTyp = nskType.genSym $OrigTyp
       PatchedId = makeId(PatchedTyp, fieldIsExported)
-      toOrigId = makeId(nskConverter.genSym $OrigTyp, typIsExported)
+      toOrigId = makeId(nskConverter.genSym "toOrig" & $OrigTyp, typIsExported)
       toPatchedName = ident repr nskConverter.genSym $OrigTyp
       toPatchedId = makeId(toPatchedName, fieldIsExported)
     converterCode.add quote do:
