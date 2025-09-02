@@ -18,7 +18,7 @@ type
     B = 20
     C = 42
 
-  CaseObject* {.allowEnumWithoutZero.} = object
+  CaseObject* {.allowDiscriminatorsWithoutZero.} = object
     case xafaafa: bool
     of default(bool): discard
     else: discard

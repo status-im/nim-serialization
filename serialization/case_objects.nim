@@ -22,7 +22,7 @@
 #
 # To use the macro:
 #
-# 1. Annotate the case object type with `{.allowEnumWithoutZero.}`
+# 1. Annotate the case object type with `{.allowDiscriminatorsWithoutZero.}`
 # 2. Change init logic from `T(a: 1, b: 2)` syntax to `T.init(a = 1, b = 2)`
 # 3. Change `fields` and `fieldPairs` usage to `withFields` / `withFieldPairs`
 
@@ -34,7 +34,8 @@ when (NimMajor, NimMinor) < (2, 0):
   # For now, macros can return an unused type definition where the right-hand
   # node is of kind `nnkStmtListType`. Declarations in this node will be
   # attached to the same scope as the parent scope of the type section.
-  {.error: "`allowEnumWithoutZero` requires extended macro pragmas (Nim 2.0+)".}
+  {.error: "`allowDiscriminatorsWithoutZero` requires " &
+    "extended macro pragmas (Nim 2.0+)".}
 
 func isSupportedAsDiscriminator(T: typedesc): bool =
   when compiles(T.low.int):
@@ -93,7 +94,7 @@ func makeId(id: NimNode, isExported: bool): NimNode =
   else:
     id
 
-macro allowEnumWithoutZero*(typ: untyped{nkTypeDef}): untyped =
+macro allowDiscriminatorsWithoutZero*(typ: untyped{nkTypeDef}): untyped =
   let def = typ[2]
   if def.kind != nnkObjectTy:
     return typ
