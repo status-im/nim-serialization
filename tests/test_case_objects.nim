@@ -49,22 +49,8 @@ macro allFieldNames(typ: typedesc): HashSet[string] =
   impl.withNodes(nnkIdentDefs):
     let
       ident = parent[childIndex][0]
-      nameNode =
-        case ident.kind
-        of nnkPostfix:
-          ident[1]
-        else:
-          ident
-      name =
-        case nameNode.kind
-        of nnkPragmaExpr:
-          doAssert nameNode[1][0].kind == nnkExprColonExpr
-          doAssert $nameNode[1][0][0] == "originalFieldName"
-          nameNode[1][0][1]
-        else:
-          nameNode
-      nameSym = newLit $name
-    code.add quote do: `res`.incl `nameSym`
+      name = newLit getOriginalFieldName(ident)
+    code.add quote do: `res`.incl `name`
   code.add quote do: `res`
   quote do: (static(block: `code`))
 
