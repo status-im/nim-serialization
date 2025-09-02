@@ -126,10 +126,9 @@ macro allowDiscriminatorsWithoutZero*(typ: untyped{nkTypeDef}): untyped =
     (T, typIsExported) = typ[0][0].splitId()
     initId = makeId(ident "init", typIsExported)
     fieldsId = makeId(ident "fields", typIsExported)
-    withFieldsId = makeId(ident "withFields", typIsExported)
     fieldPairsId = makeId(ident "fieldPairs", typIsExported)
-    withFieldPairs = ident "withFieldPairs"
-    withFieldPairsId = makeId(withFieldPairs, typIsExported)
+    doWithFields = ident "doWithFields"
+    doWithFieldPairs = ident "doWithFieldPairs"
     dollarId = makeId(ident "$", typIsExported)
     arg = nskForVar.genSym "arg"
     code = nskVar.genSym "code"
@@ -255,28 +254,28 @@ macro allowDiscriminatorsWithoutZero*(typ: untyped{nkTypeDef}): untyped =
             {.error: $t & " does not support `fieldPairs`; " &
               "use `withFieldPairs` instead".}
 
-          iterator `fieldsId`[t: `T`](x: t): RootObj {.noSideEffect, used.} =
-            {.error: $t & " does not support `fields`; " &
-              "use `withFields` instead".}
-
-          template `withFieldPairsId`(
+          template `doWithFieldPairs`(
               x: `T`, `keyParam`: untyped, `valParam`: untyped,
               body: untyped) {.used.} =
             for `keyId`, `valId` in system.fieldPairs(x):
               `fieldPairsCode`
               body
 
-          template `withFieldsId`(
+          iterator `fieldsId`[t: `T`](x: t): RootObj {.noSideEffect, used.} =
+            {.error: $t & " does not support `fields`; " &
+              "use `withFields` instead".}
+
+          template `doWithFields`(
               x: `T`, `valParam`: untyped,
               body: untyped) {.used.} =
-            `withFieldPairs`(x, _, `valParam`):
+            `doWithFieldPairs`(x, _, `valParam`):
               body
 
           func `dollarId`(x: `T`): string {.used.} =
             var
               res = "("
               didAdd = false
-            x.withFieldPairs(key, val):
+            x.`doWithFieldPairs`(key, val):
               if didAdd:
                 res &= ", "
               res &= key & ": " & $val
@@ -286,15 +285,21 @@ macro allowDiscriminatorsWithoutZero*(typ: untyped{nkTypeDef}): untyped =
         ),
         ident "void")))
 
-template withFieldPairs*[T: tuple|object](
-    x: T, keyParam: untyped, valParam: untyped, body: untyped) =
-  for key, val in x.fieldPairs:
-    const keyParam {.inject, used.} = key
-    template valParam: untyped {.inject, used.} = val
-    body
+template withFieldPairs*(
+    x: auto, keyParam: untyped, valParam: untyped, body: untyped) =
+  when compiles(doWithFieldPairs(x, keyParam, valParam, body)):
+    doWithFieldPairs(x, keyParam, valParam, body)
+  else:
+    for key, val in x.fieldPairs:
+      const keyParam {.inject, used.} = key
+      template valParam: untyped {.inject, used.} = val
+      body
 
-template withFields*[T: tuple|object](
-    x: T, valParam: untyped, body: untyped) =
-  for val in fieldPairs:
-    template valParam: untyped {.inject, used.} = val
-    body
+template withFields*(
+    x: auto, valParam: untyped, body: untyped) =
+  when compiles(doWithFields(x, valParam, body)):
+    doWithFields(x, valParam, body)
+  else:
+    for val in fieldPairs:
+      template valParam: untyped {.inject, used.} = val
+      body
