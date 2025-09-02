@@ -300,6 +300,6 @@ template withFields*(
   when compiles(doWithFields(x, valParam, body)):
     doWithFields(x, valParam, body)
   else:
-    for val in fieldPairs:
+    for val in x.fields:
       template valParam: untyped {.inject, used.} = val
       body
