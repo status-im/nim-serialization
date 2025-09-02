@@ -249,15 +249,15 @@ macro allowDiscriminatorsWithoutZero*(typ: untyped{nkTypeDef}): untyped =
               `initCode`
             `code`
 
-          iterator `fieldsId`[t: `T`](x: t): RootObj {.noSideEffect, used.} =
-            {.error: $t & " does not support `fields`; " &
-              "use `withFields` instead".}
-
           iterator `fieldPairsId`[t: `T`](
               x: t,
           ): tuple[key: string, val: RootObj] {.noSideEffect, used.} =
             {.error: $t & " does not support `fieldPairs`; " &
               "use `withFieldPairs` instead".}
+
+          iterator `fieldsId`[t: `T`](x: t): RootObj {.noSideEffect, used.} =
+            {.error: $t & " does not support `fields`; " &
+              "use `withFields` instead".}
 
           template `withFieldPairsId`(
               x: `T`, `keyParam`: untyped, `valParam`: untyped,
@@ -285,3 +285,16 @@ macro allowDiscriminatorsWithoutZero*(typ: untyped{nkTypeDef}): untyped =
             res
         ),
         ident "void")))
+
+template withFieldPairs*[T: tuple|object](
+    x: T, keyParam: untyped, valParam: untyped, body: untyped) =
+  for key, val in x.fieldPairs:
+    const keyParam {.inject, used.} = key
+    template valParam: untyped {.inject, used.} = val
+    body
+
+template withFields*[T: tuple|object](
+    x: T, valParam: untyped, body: untyped) =
+  for val in fieldPairs:
+    template valParam: untyped {.inject, used.} = val
+    body
