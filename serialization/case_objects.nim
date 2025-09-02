@@ -25,6 +25,10 @@
 # 1. Annotate the case object type with `{.allowDiscriminatorsWithoutZero.}`
 # 2. Change init logic from `T(a: 1, b: 2)` syntax to `T.init(a = 1, b = 2)`
 # 3. Change `fields` and `fieldPairs` usage to `withFields` / `withFieldPairs`
+#
+# When inspecting the type from another macro, one may encounter discriminators
+# that have been assigned new field names internally. If that happens, the
+# original field name is exposed via pragma `{.origin: "originalFieldName".}`
 
 import std/macros
 export macros
@@ -56,16 +60,14 @@ macro withZeroField(typ: typedesc[enum]): untyped =
     of nnkEmpty:
       doAssert i == 0
     of nnkEnumFieldDef:
-      def.add nnkEnumFieldDef.newTree(
-        nskEnumField.genSym $field[0],
-        field[1])
+      def.add nnkEnumFieldDef.newTree(nskEnumField.genSym $field[0], field[1])
     of nnkSym:
       def.add nskEnumField.genSym $field
     else:
       error "unexpected enum field", field
   def
 
-template withNodes(
+template withNodes*(
     root: NimNode, kindParam: NimNodeKind, body: untyped): untyped =
   block:
     func dfs(node: NimNode) =
@@ -86,13 +88,15 @@ func splitId(node: NimNode): tuple[id: NimNode, isExported: bool] =
   of nnkIdent:
     (node, false)
   else:
-    error "unexpected discriminator identifier", node
+    error "unexpected identifier", node
 
 func makeId(id: NimNode, isExported: bool): NimNode =
   if isExported:
     nnkPostfix.newTree(ident "*", id)
   else:
     id
+
+template originalFieldName*(_: string) {.pragma.}
 
 macro allowDiscriminatorsWithoutZero*(typ: untyped{nkTypeDef}): untyped =
   let def = typ[2]
@@ -149,9 +153,15 @@ macro allowDiscriminatorsWithoutZero*(typ: untyped{nkTypeDef}): untyped =
         converter `toPatchedId`(x: `OrigTyp`): `PatchedTyp` {.used.} =
           cast[`PatchedTyp`](x)
 
-    let patchedName = ident repr nskField.genSym $origName
+    let
+      patchedName = ident repr nskField.genSym $origName
+      origNameStr = newStrLitNode($origName)
+      origNamePragma = nnkPragma.newTree(nnkExprColonExpr.newTree(
+        bindSym "originalFieldName", origNameStr))
     var patchedRecCase = nnkRecCase.newTree(
-      nnkIdentDefs.newTree(patchedName, PatchedTyp, newEmptyNode()),
+      nnkIdentDefs.newTree(
+        nnkPragmaExpr.newTree(patchedName, origNamePragma),
+        PatchedTyp, newEmptyNode()),
       nnkOfBranch.newTree(quote do: default(`PatchedTyp`), newNilLit()))
     for i, node in recCase:
       if i == 0:
@@ -174,7 +184,6 @@ macro allowDiscriminatorsWithoutZero*(typ: untyped{nkTypeDef}): untyped =
           `OrigTyp`
 
     let
-      origNameStr = newStrLitNode($origName)
       patchedNameStr = newStrLitNode($patchedName)
       toPatchedNameStr = newStrLitNode($toPatchedName)
     initCode.add nnkOfBranch.newTree(origNameStr, quote do:

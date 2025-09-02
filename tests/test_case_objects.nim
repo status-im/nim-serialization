@@ -9,6 +9,7 @@
 {.used.}
 
 import
+  std/sets,
   unittest2,
   ../serialization/case_objects
 
@@ -37,6 +38,35 @@ type
     of B:
       bData*: float
     of C: discard
+
+macro allFieldNames(typ: typedesc): HashSet[string] =
+  let
+    impl = typ.getImpl()
+    res = nskVar.genSym "res"
+  var code = newStmtList()
+  code.add quote do:
+    var `res`: HashSet[string]
+  impl.withNodes(nnkIdentDefs):
+    let
+      ident = parent[childIndex][0]
+      nameNode =
+        case ident.kind
+        of nnkPostfix:
+          ident[1]
+        else:
+          ident
+      name =
+        case nameNode.kind
+        of nnkPragmaExpr:
+          doAssert nameNode[1][0].kind == nnkExprColonExpr
+          doAssert $nameNode[1][0][0] == "originalFieldName"
+          nameNode[1][0][1]
+        else:
+          nameNode
+      nameSym = newLit $name
+    code.add quote do: `res`.incl `nameSym`
+  code.add quote do: `res`
+  quote do: (static(block: `code`))
 
 suite "Case objects without 0 value in discriminator":
   test "Typing":
@@ -94,3 +124,9 @@ suite "Case objects without 0 value in discriminator":
           $v == expected[i].val
         inc i
       check i == expected.len
+
+  test "Macro access":
+    const fieldNames = CaseObject.allFieldNames
+    check fieldNames == toHashSet [
+      "xafaafa", "selector", "aSelector", "aaData",
+      "abData", "aData", "bData"]
