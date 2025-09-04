@@ -28,7 +28,7 @@
 #
 # When inspecting the type from another macro, one may encounter discriminators
 # that have been assigned new field names internally. If that happens, the
-# original field name is exposed via pragma `{.origin: "originalFieldName".}`
+# original field name is exposed via pragma `{.originalFieldName: "name".}`
 
 import std/macros
 export macros
