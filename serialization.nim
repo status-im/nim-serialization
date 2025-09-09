@@ -75,7 +75,7 @@ template decodeImpl[InputType](
       # faststreams may be reading from a file or a network device.
       {.noSideEffect.}:
         var reader = unpackForwarded(init, [ReaderType, stream, params])
-        reader.readValue(result)
+        result = reader.readValue(unpeel(RecordType))
     except IOError:
       raiseAssert "memory input doesn't raise IOError"
 
