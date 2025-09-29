@@ -158,12 +158,16 @@ template roundtripChecks*(Format: type, value: auto, expectedResult: auto) =
 
   try:
     let decoded = Format.decode(serialized, type(origValue))
-    checkpoint "(decoded value): " & repr(decoded)
+    # TODO: https://github.com/nim-lang/Nim/issues/25226
+    when nimvm:
+      checkpoint "(decoded value): " & $(decoded)
+    else:
+      checkpoint "(decoded value): " & repr(decoded)
     let success = maybeDefer(decoded) == maybeDefer(origValue)
     check success
 
   except SerializationError as err:
-    checkpoint "(serialization error): " & err.formatMsg("(encoded value)")
+    #checkpoint "(serialization error): " & err.formatMsg("(encoded value)")
     fail()
 
   except:
@@ -174,14 +178,16 @@ template roundtripChecks*(Format: type, value: auto, expectedResult: auto) =
 template roundtripTest*(Format: type, value: auto, expectedResult: auto) =
   mixin `==`
   # TODO can't use the dot operator on the next line.
-  test name(Format) & " " & name(type(value)) & " roundtrip":
-    roundtripChecks Format, value, expectedResult
+  #test " roundtrip":
+  roundtripChecks Format, value, expectedResult
 
 template roundtripTest*(Format: type, value: auto) =
   roundtripTest(Format, value, NoExpectedResult(0))
 
 template roundtripChecks*(Format: type, value: auto) =
   roundtripChecks(Format, value, NoExpectedResult(0))
+
+var rng {.compileTime.} = initRand(1234)
 
 proc executeRoundtripTests*(Format: type) =
   template roundtrip(val: untyped) =
@@ -191,13 +197,14 @@ proc executeRoundtripTests*(Format: type) =
     when compiles(roundtripChecks(Format, val)):
       roundtripChecks(Format, val)
 
-  suite(name(Format) & " generic roundtrip tests"):
+  const nn = ""
+  suite(nn & " generic roundtrip tests"):
     test "simple values":
       template intTests(T: untyped) =
         roundtrip low(T)
         roundtrip high(T)
         for i in 0..1000:
-          roundtrip rand(T)
+          roundtrip rng.rand(T)
 
       intTests int8
       intTests int16
@@ -328,7 +335,8 @@ proc executeReaderWriterTests*(Format: type) =
   type
     ReaderType = Reader Format
 
-  suite(typetraits.name(Format) & " read/write tests"):
+  const nn = ""
+  suite(nn & " read/write tests"):
     test "Low-level field reader test":
       const barFields = fieldReadersTable(Bar, ReaderType)
       var idx = 0
