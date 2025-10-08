@@ -7,5 +7,28 @@ on:
   workflow_dispatch:
 
 jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      nim-versions: ${{ steps.nim-versions.outputs.nim-versions }}
+    permissions: {}
+    steps:
+      - name: Disable Nim version-1-6
+        id: nim-versions
+        run: |
+          workflow="$(curl 'https://raw.githubusercontent.com/status-im/nimbus-common-workflow/main/.github/workflows/common.yml')"
+          versions=$(echo "$workflow" | yq '.on.workflow_call.inputs["nim-versions"].default')
+          if [[ "$(echo "$versions" | jq 'index("version-1-6")')" == "null" ]]; then
+            echo "version-1-6 no longer needs to be filtered, prepare job can be removed from ci.yml"
+            exit 1
+          fi
+          filtered_versions="$(echo "$versions" | jq -c 'map(select(. != "version-1-6"))')"
+          echo "nim-versions=${filtered_versions}" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: prepare
+    permissions:
+      contents: read
     uses: status-im/nimbus-common-workflow/.github/workflows/common.yml@main
+    with:
+      nim-versions: ${{ needs.prepare.outputs.nim-versions }}
