@@ -1,13 +1,13 @@
 mode = ScriptMode.Verbose
 
 packageName   = "serialization"
-version       = "0.4.9"
+version       = "0.5.0"
 author        = "Status Research & Development GmbH"
 description   = "A modern and extensible serialization framework for Nim"
 license       = "Apache License 2.0"
 skipDirs      = @["tests"]
 
-requires "nim >= 1.6.0",
+requires "nim >= 2.0.0",
          "faststreams",
          "unittest2",
          "stew"
@@ -27,8 +27,7 @@ proc build(args, path: string) =
 
 proc run(args, path: string) =
   build args & " --mm:refc -r", path
-  if (NimMajor, NimMinor) > (1, 6):
-    build args & " --mm:orc -r", path
+  build args & " --mm:orc -r", path
 
 task test, "Run all tests":
   for threads in ["--threads:off", "--threads:on"]:
