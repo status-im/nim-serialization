@@ -234,9 +234,9 @@ macro allowDiscriminatorsWithoutZero*(typ: untyped{nkTypeDef}): untyped =
   #       nskType.genSym "",  # name of the unused type
   #       newEmptyNode(),
   #       nnkStmtListType.newTree(  # right-hand node
-  #       (quote do:
-  #         ... init, fields, fieldPairs, $ ...  # injected to parent scope
-  #         ident "void")))  # placeholder type to satisfy the type section
+  #         (quote do:
+  #           ... init, fields, fieldPairs, $ ...  # injected to parent scope
+  #           ident "void")))  # placeholder type to satisfy the type section
 
   nnkTypeSection.newTree(
     nnkTypeDef.newTree(
