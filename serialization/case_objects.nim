@@ -221,6 +221,23 @@ macro allowDiscriminatorsWithoutZero*(typ: untyped{nkTypeDef}): untyped =
     const `keyParam` {.inject, used.} = `keyId`
     template `valParam`: untyped {.inject, used.} = `valId`
 
+  # macros can return an unused type definition where the right-hand node is
+  # of kind nnkStmtListType. Declarations in this node will be attached to the
+  # same scope as the parent scope of the type section.
+  # https://nim-lang.org/docs/manual_experimental.html#extended-macro-pragmas
+  #
+  # We use this to attach the init, fields, fieldPairs, and $ implementations
+  # to the same scope as the case object type.
+  #
+  #   nnkTypeSection.newTree(
+  #     nnkTypeDef.newTree(
+  #       nskType.genSym "",  # name of the unused type
+  #       newEmptyNode(),
+  #       nnkStmtListType.newTree(  # right-hand node
+  #       (quote do:
+  #         ... init, fields, fieldPairs, $ ...  # injected to parent scope
+  #         ident "void")))  # placeholder type to satisfy the type section
+
   nnkTypeSection.newTree(
     nnkTypeDef.newTree(
       nskType.genSym "",
