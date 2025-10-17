@@ -151,7 +151,8 @@ template maybeDefer(x: auto): auto =
 template roundtripChecks*(Format: type, value: auto, expectedResult: auto) =
   let origValue = value
   let serialized = encode(Format, origValue)
-  checkpoint "(encoded value): " & $serialized
+  {.cast(gcsafe).}:  # $(object) is not gcsafe in Nim <= 2.0
+    checkpoint "(encoded value): " & $serialized
 
   when not (expectedResult is NoExpectedResult):
     check serialized == expectedResult
@@ -167,8 +168,9 @@ template roundtripChecks*(Format: type, value: auto, expectedResult: auto) =
     fail()
 
   except:
-    when compiles($value):
-      checkpoint "unexpected failure in roundtrip test for " & $value
+    {.cast(gcsafe).}:
+      when compiles($value):
+        checkpoint "unexpected failure in roundtrip test for " & $value
     raise
 
 template roundtripTest*(Format: type, value: auto, expectedResult: auto) =
@@ -188,7 +190,7 @@ proc executeRoundtripTests*(Format: type) =
     # TODO:
     # If this doesn't work reliably, it will fail too silently.
     # We need to report the number of checks passed.
-    when compiles(roundtripChecks(Format, val)):
+    when defined(serializationTestAllRountrips) or compiles(roundtripChecks(Format, val)):
       roundtripChecks(Format, val)
 
   suite(name(Format) & " generic roundtrip tests"):

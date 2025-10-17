@@ -7,16 +7,15 @@ import
 {.used.}
 
 suite "object serialization":
-  setup:
-    var fieldsList = newSeq[string]()
-
   test "custom fields order":
+    var fieldsList = newSeq[string]()
     enumAllSerializedFields(Simple):
       fieldsList.add(name(FieldType) & " " & fieldName & fieldCaseDiscriminator)
 
     check fieldsList == @["Meter distance", "int x", "string y"]
 
   test "tuples handling":
+    var fieldsList = newSeq[string]()
     enumAllSerializedFields(HoldsTuples):
       fieldsList.add(fieldName & ": " & $isTuple(FieldType))
 
