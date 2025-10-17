@@ -48,6 +48,9 @@ proc writeHead*(w: var SerWriter, k: SerKind, size: uint64) {.raises: [IOError].
   w.stream.write(k.ord.byte)
   w.stream.write(size.toBytesBE())
 
+proc writeHead*(w: var SerWriter, k: SerKind, size: int) {.raises: [IOError].} =
+  writeHead(w, k, size.uint64)
+
 proc writeValue*(w: var SerWriter, val: auto) {.raises: [IOError].} =
   type T = typeof(val)
   when T is SomeInteger:
@@ -55,11 +58,11 @@ proc writeValue*(w: var SerWriter, val: auto) {.raises: [IOError].} =
   elif T is SomeFloat:
     writeHead(w, SerKind.Float, cast[uint64](float64(val)))
   elif T is string:
-    writeHead(w, SerKind.String, val.len.uint64)
+    writeHead(w, SerKind.String, val.len)
     for x in val:
       w.stream.write x.byte
   elif T is seq:
-    writeHead(w, SerKind.Array, val.len.uint64)
+    writeHead(w, SerKind.Array, val.len)
     for x in val:
       writeValue(w, x)
   elif T is (object or tuple):
@@ -68,14 +71,14 @@ proc writeValue*(w: var SerWriter, val: auto) {.raises: [IOError].} =
       inc L
       discard fieldName
       discard fieldValue
-    writeHead(w, SerKind.Map, L.uint64)
+    writeHead(w, SerKind.Map, L)
     val.enumInstanceSerializedFields(fieldName, fieldValue):
       writeValue(w, fieldName)
       writeValue(w, fieldValue)
   elif T is bool:
-    writeHead(w, SerKind.Bool, uint64(val))
+    writeHead(w, SerKind.Bool, val.int)
   elif T is enum:
-    writeHead(w, SerKind.Int, uint64(val.ord))
+    writeHead(w, SerKind.Int, val.ord)
   elif T is ref:
     if val.isNil:
       writeHead(w, SerKind.Nil, 0)

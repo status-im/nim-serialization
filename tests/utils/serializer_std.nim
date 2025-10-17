@@ -9,7 +9,7 @@ export tables, sets
 type TableType = OrderedTable | Table
 
 proc writeValue*(w: var SerWriter, value: TableType) {.raises: [IOError].} =
-  writeHead(w, SerKind.Map, value.len.uint64)
+  writeHead(w, SerKind.Map, value.len)
   for key, val in value:
     w.writeValue(key)
     w.writeValue(val)
@@ -25,7 +25,7 @@ proc readValue*(r: var SerReader, value: var TableType) {.raises: [IOError, Seri
 type SetType = OrderedSet | HashSet | set
 
 proc writeValue*(w: var SerWriter, value: SetType) {.raises: [IOError].} =
-  writeHead(w, SerKind.Array, value.len.uint64)
+  writeHead(w, SerKind.Array, value.len)
   for x in value:
     w.writeValue(x)
 
