@@ -13,7 +13,7 @@ import
 
 # XXX: export parseInt or bind it
 #      required for write tuple
-export parseInt
+export serialization, parseInt
 
 # XXX push raises
 
