@@ -159,12 +159,23 @@ template roundtripChecks*(Format: type, value: auto, expectedResult: auto) =
 
   try:
     let decoded = Format.decode(serialized, type(origValue))
-    checkpoint "(decoded value): " & repr(decoded)
+    # TODO: https://github.com/nim-lang/Nim/issues/25226
+    when nimvm:
+      when type(origValue) is string:
+        let decoded2 = decoded[0 ..< min(decoded.len, int16.high-2)]
+        checkpoint "(decoded value): " & repr(decoded2)
+      else:
+        checkpoint "(decoded value): " & repr(decoded)
+    else:
+      checkpoint "(decoded value): " & repr(decoded)
     let success = maybeDefer(decoded) == maybeDefer(origValue)
     check success
 
   except SerializationError as err:
-    checkpoint "(serialization error): " & err.formatMsg("(encoded value)")
+    when nimvm:
+      checkpoint "(serialization error): " & err.msg
+    else:
+      checkpoint "(serialization error): " & err.formatMsg("(encoded value)")
     fail()
 
   except:
@@ -185,6 +196,8 @@ template roundtripTest*(Format: type, value: auto) =
 template roundtripChecks*(Format: type, value: auto) =
   roundtripChecks(Format, value, NoExpectedResult(0))
 
+var rng {.compileTime.} = initRand(1234)
+
 proc executeRoundtripTests*(Format: type) =
   template roundtrip(val: untyped) =
     # TODO:
@@ -199,7 +212,7 @@ proc executeRoundtripTests*(Format: type) =
         roundtrip low(T)
         roundtrip high(T)
         for i in 0..1000:
-          roundtrip rand(T)
+          roundtrip rng.rand(T)
 
       intTests int8
       intTests int16
