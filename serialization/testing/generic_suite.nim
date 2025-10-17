@@ -160,7 +160,7 @@ template roundtripChecks*(Format: type, value: auto, expectedResult: auto) =
     let decoded = Format.decode(serialized, type(origValue))
     # TODO: https://github.com/nim-lang/Nim/issues/25226
     when nimvm:
-      checkpoint "(decoded value): " & $(decoded)
+      checkpoint "(decoded value): " & ""
     else:
       checkpoint "(decoded value): " & repr(decoded)
     let success = maybeDefer(decoded) == maybeDefer(origValue)
@@ -194,7 +194,7 @@ proc executeRoundtripTests*(Format: type) =
     # TODO:
     # If this doesn't work reliably, it will fail too silently.
     # We need to report the number of checks passed.
-    when compiles(roundtripChecks(Format, val)):
+    when defined(serializationTestAllRountrips) or compiles(roundtripChecks(Format, val)):
       roundtripChecks(Format, val)
 
   const nn = ""

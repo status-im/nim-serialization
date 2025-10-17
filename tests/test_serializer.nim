@@ -2,10 +2,6 @@ import
   unittest2,
   ./utils/serializer
 
-# XXX: export parseInt or bind it
-#      required for write tuple
-import std/strutils
-
 proc rountrip[T](val: T): bool =
   let ser = Ser.encode(val)
   val == Ser.decode(ser, T)
@@ -64,3 +60,22 @@ suite "Rountrips":
     check:
       rountrip(true)
       rountrip(false)
+
+  test "enum":
+    type Foo = enum
+      fooA
+      fooB
+    check:
+      rountrip(fooA)
+      rountrip(fooB)
+
+  test "ref":
+    let val = new(string)
+    val[] = "abc"
+    let ser = Ser.encode(val)
+    check val[] == Ser.decode(ser, typeof(val))[]
+
+  test "ref nil":
+    var val: ref string
+    let ser = Ser.encode(val)
+    check Ser.decode(ser, typeof(val)).isNil()

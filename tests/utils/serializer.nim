@@ -7,10 +7,15 @@
 ## where val.len is written as val.len.uint64.toBytes
 
 import
+  std/strutils,
   stew/endians2,
   ../../serialization
 
-export serialization
+# XXX: export parseInt or bind it
+#      required for write tuple
+export parseInt
+
+# XXX push raises
 
 serializationFormat Ser
 
@@ -39,11 +44,11 @@ type SerKind* {.pure.} = enum
   Bool
   Nil
 
-proc writeHead(w: var SerWriter, k: SerKind, size: uint64) =
+proc writeHead*(w: var SerWriter, k: SerKind, size: uint64) =
   w.stream.write(k.ord.byte)
   w.stream.write(size.toBytesBE())
 
-proc writeValue*(w: var SerWriter, val: auto) =
+proc writeValue*(w: var SerWriter, val: auto) {.raises: [IOError].} =
   type T = typeof(val)
   when T is SomeInteger:
     writeHead(w, SerKind.Int, cast[uint64](val))
@@ -69,27 +74,42 @@ proc writeValue*(w: var SerWriter, val: auto) =
       writeValue(w, fieldValue)
   elif T is bool:
     writeHead(w, SerKind.Bool, uint64(val))
+  elif T is enum:
+    writeHead(w, SerKind.Int, uint64(val.ord))
+  elif T is ref:
+    if val.isNil:
+      writeHead(w, SerKind.Nil, 0)
+    else:
+      writeValue(w, val[])
   else:
     {.error: "cannot write type " & $T.}
+
+func allocPtr[T](p: var ref T) =
+  p = new(T)
 
 proc read(r: var SerReader): byte =
   if not r.stream.readable():
     raise newException(SerializationError, "eof")
   r.stream.read()
 
-proc readUint64(r: var SerReader): uint64 =
+proc peek(r: var SerReader): byte =
+  if not r.stream.readable():
+    raise newException(SerializationError, "eof")
+  r.stream.peek()
+
+proc readUint64*(r: var SerReader): uint64 =
   result = 0
   for _ in 0 ..< sizeof(uint64):
     result = (result shl 8) or r.read()
 
-template consumeKind(r, k) =
+proc consumeKind*(r: var SerReader, k: SerKind) =
   let ek = r.read()
-  if ek != k.ord:
+  if ek.int != k.ord:
     raise newException(
       SerializationError, "expected " & $k.ord & "found " & $ek
     )
 
-proc readValue*(r: var SerReader, val: var auto) =
+proc readValue*(r: var SerReader, val: var auto) {.raises: [IOError, SerializationError].} =
   type T = typeof(val)
   when T is SomeInteger:
     consumeKind r, SerKind.Int
@@ -129,5 +149,20 @@ proc readValue*(r: var SerReader, val: var auto) =
   elif T is bool:
     consumeKind r, SerKind.Bool
     val = T(r.readUint64())
+  elif T is enum:
+    consumeKind r, SerKind.Int
+    val = T(r.readUint64())
+  elif T is ref:
+    if r.peek() == SerKind.Nil.ord:
+      consumeKind r, SerKind.Nil
+      val = nil
+    else:
+      allocPtr val
+      readValue(r, val[])
   else:
     {.error: "cannot read type " & $T.}
+
+iterator readObjectFields*(r: var SerReader): string =
+  consumeKind r, SerKind.Map
+  for _ in 0 ..< r.readUint64():
+    yield readValue(r, string)
