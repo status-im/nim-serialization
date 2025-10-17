@@ -1,3 +1,5 @@
+{.push raises: [], gcsafe.}
+
 import
   ./utils/[serializer, serializer_std],
   ../serialization,

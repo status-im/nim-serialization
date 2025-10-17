@@ -6,6 +6,8 @@
 ## where type is an enum of the supported types
 ## where val.len is written as val.len.uint64.toBytes
 
+{.push raises: [], gcsafe.}
+
 import
   std/strutils,
   stew/endians2,
@@ -44,7 +46,7 @@ type SerKind* {.pure.} = enum
   Bool
   Nil
 
-proc writeHead*(w: var SerWriter, k: SerKind, size: uint64) =
+proc writeHead*(w: var SerWriter, k: SerKind, size: uint64) {.raises: [IOError].} =
   w.stream.write(k.ord.byte)
   w.stream.write(size.toBytesBE())
 
@@ -87,22 +89,22 @@ proc writeValue*(w: var SerWriter, val: auto) {.raises: [IOError].} =
 func allocPtr[T](p: var ref T) =
   p = new(T)
 
-proc read(r: var SerReader): byte =
+proc read(r: var SerReader): byte {.raises: [IOError, SerializationError].} =
   if not r.stream.readable():
     raise newException(SerializationError, "eof")
   r.stream.read()
 
-proc peek(r: var SerReader): byte =
+proc peek(r: var SerReader): byte {.raises: [IOError, SerializationError].} =
   if not r.stream.readable():
     raise newException(SerializationError, "eof")
   r.stream.peek()
 
-proc readUint64*(r: var SerReader): uint64 =
+proc readUint64*(r: var SerReader): uint64 {.raises: [IOError, SerializationError].} =
   result = 0
   for _ in 0 ..< sizeof(uint64):
     result = (result shl 8) or r.read()
 
-proc consumeKind*(r: var SerReader, k: SerKind) =
+proc consumeKind*(r: var SerReader, k: SerKind) {.raises: [IOError, SerializationError].} =
   let ek = r.read()
   if ek.int != k.ord:
     raise newException(
@@ -162,7 +164,7 @@ proc readValue*(r: var SerReader, val: var auto) {.raises: [IOError, Serializati
   else:
     {.error: "cannot read type " & $T.}
 
-iterator readObjectFields*(r: var SerReader): string =
+iterator readObjectFields*(r: var SerReader): string {.raises: [IOError, SerializationError].} =
   consumeKind r, SerKind.Map
   for _ in 0 ..< r.readUint64():
     yield readValue(r, string)

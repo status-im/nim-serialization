@@ -1,6 +1,7 @@
+{.push raises: [], gcsafe.}
+
 import
   stew/shims/[tables, sets],
-  ../../serialization,
   ./serializer
 
 export tables, sets

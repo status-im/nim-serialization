@@ -1,8 +1,10 @@
+{.push raises: [], gcsafe.}
+
 import
   unittest2,
   ./utils/serializer
 
-proc rountrip[T](val: T): bool =
+proc rountrip[T](val: T): bool {.raises: [SerializationError].} =
   let ser = Ser.encode(val)
   val == Ser.decode(ser, T)
 
