@@ -21,7 +21,7 @@ let cfg =
   " --styleCheck:usages --styleCheck:error" &
   (if verbose: "" else: " --verbosity:0") &
   " --skipParentCfg --skipUserCfg --outdir:build --nimcache:build/nimcache -f" &
-  " -d:unittest2Static -d:serializationTestAllRountrips"
+  " -d:serializationTestAllRountrips"
 
 proc build(args, path: string) =
   exec nimc & " " & lang & " " & cfg & " " & flags & " " & args & " " & path

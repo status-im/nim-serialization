@@ -151,43 +151,39 @@ template maybeDefer(x: auto): auto =
 template roundtripChecks*(Format: type, value: auto, expectedResult: auto) =
   let origValue = value
   let serialized = encode(Format, origValue)
-  checkpoint "(encoded value): " & $serialized
+  {.cast(gcsafe).}:  # $(object) is not gcsafe in Nim <= 2.0
+    checkpoint "(encoded value): " & $serialized
 
   when not (expectedResult is NoExpectedResult):
     check serialized == expectedResult
 
   try:
     let decoded = Format.decode(serialized, type(origValue))
-    # TODO: https://github.com/nim-lang/Nim/issues/25226
-    when nimvm:
-      checkpoint "(decoded value): " & ""
-    else:
-      checkpoint "(decoded value): " & repr(decoded)
+    checkpoint "(decoded value): " & repr(decoded)
     let success = maybeDefer(decoded) == maybeDefer(origValue)
     check success
 
   except SerializationError as err:
-    #checkpoint "(serialization error): " & err.formatMsg("(encoded value)")
+    checkpoint "(serialization error): " & err.formatMsg("(encoded value)")
     fail()
 
   except:
-    when compiles($value):
-      checkpoint "unexpected failure in roundtrip test for " & $value
+    {.cast(gcsafe).}:
+      when compiles($value):
+        checkpoint "unexpected failure in roundtrip test for " & $value
     raise
 
 template roundtripTest*(Format: type, value: auto, expectedResult: auto) =
   mixin `==`
   # TODO can't use the dot operator on the next line.
-  #test " roundtrip":
-  roundtripChecks Format, value, expectedResult
+  test name(Format) & " " & name(type(value)) & " roundtrip":
+    roundtripChecks Format, value, expectedResult
 
 template roundtripTest*(Format: type, value: auto) =
   roundtripTest(Format, value, NoExpectedResult(0))
 
 template roundtripChecks*(Format: type, value: auto) =
   roundtripChecks(Format, value, NoExpectedResult(0))
-
-var rng {.compileTime.} = initRand(1234)
 
 proc executeRoundtripTests*(Format: type) =
   template roundtrip(val: untyped) =
@@ -197,14 +193,13 @@ proc executeRoundtripTests*(Format: type) =
     when defined(serializationTestAllRountrips) or compiles(roundtripChecks(Format, val)):
       roundtripChecks(Format, val)
 
-  const nn = ""
-  suite(nn & " generic roundtrip tests"):
+  suite(name(Format) & " generic roundtrip tests"):
     test "simple values":
       template intTests(T: untyped) =
         roundtrip low(T)
         roundtrip high(T)
         for i in 0..1000:
-          roundtrip rng.rand(T)
+          roundtrip rand(T)
 
       intTests int8
       intTests int16
@@ -335,8 +330,7 @@ proc executeReaderWriterTests*(Format: type) =
   type
     ReaderType = Reader Format
 
-  const nn = ""
-  suite(nn & " read/write tests"):
+  suite(typetraits.name(Format) & " read/write tests"):
     test "Low-level field reader test":
       const barFields = fieldReadersTable(Bar, ReaderType)
       var idx = 0

@@ -17,8 +17,6 @@ import
 #      required for write tuple
 export serialization, parseInt
 
-# XXX push raises
-
 serializationFormat Ser
 
 type SerWriter*[Flavor = DefaultFlavor] = object
