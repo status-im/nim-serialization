@@ -158,6 +158,7 @@ proc readValue*(r: var SerReader, val: var auto) {.raises: [IOError, Serializati
   elif T is ref:
     if r.peek() == SerKind.Nil.ord:
       consumeKind r, SerKind.Nil
+      doAssert T(r.readUint64()) == 0
       val = nil
     else:
       allocPtr val

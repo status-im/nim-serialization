@@ -1,6 +1,7 @@
 {.push raises: [], gcsafe.}
 
 import
+  unittest2,
   ./utils/[serializer, serializer_std],
   ../serialization,
   ../serialization/testing/generic_suite
@@ -56,3 +57,11 @@ proc readValue(r: var SerReader, value: var CaseObject) {.raises: [IOError, Seri
     doAssert false
 
 executeReaderWriterTests Ser
+
+# TODO: needs 
+#suite "Generic Suite":
+#  runtimeTest "roundtripChecks":
+#    Ser.roundtripChecks(123)
+#
+#  runtimeTest "roundtripTest":
+#    Ser.roundtripTest(123)
