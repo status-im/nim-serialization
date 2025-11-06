@@ -196,7 +196,13 @@ template roundtripTest*(Format: type, value: auto) =
 template roundtripChecks*(Format: type, value: auto) =
   roundtripChecks(Format, value, NoExpectedResult(0))
 
-var rng {.compileTime.} = initRand(1234)
+var rngvm {.compileTime.} = initRand(1234)
+
+template rand2(T: untyped): untyped =
+  when nimvm:
+    rngvm.rand(T)
+  else:
+    rand(T)
 
 proc executeRoundtripTests*(Format: type) =
   template roundtrip(val: untyped) =
@@ -212,7 +218,7 @@ proc executeRoundtripTests*(Format: type) =
         roundtrip low(T)
         roundtrip high(T)
         for i in 0..1000:
-          roundtrip rng.rand(T)
+          roundtrip rand2(T)
 
       intTests int8
       intTests int16
