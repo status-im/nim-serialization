@@ -162,8 +162,10 @@ template roundtripChecks*(Format: type, value: auto, expectedResult: auto) =
     # TODO: https://github.com/nim-lang/Nim/issues/25226
     when nimvm:
       when type(origValue) is string:
-        let decoded2 = decoded[0 ..< min(decoded.len, int16.high-2)]
-        checkpoint "(decoded value): " & repr(decoded2)
+        if decoded.len >= int16.high-2:
+          checkpoint "(decoded value): " & $decoded
+        else:
+          checkpoint "(decoded value): " & repr(decoded)
       else:
         checkpoint "(decoded value): " & repr(decoded)
     else:
