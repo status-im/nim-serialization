@@ -151,8 +151,7 @@ template maybeDefer(x: auto): auto =
 template roundtripChecks*(Format: type, value: auto, expectedResult: auto) =
   let origValue = value
   let serialized = encode(Format, origValue)
-  {.cast(gcsafe).}:  # $(object) is not gcsafe in Nim <= 2.0
-    checkpoint "(encoded value): " & $serialized
+  checkpoint "(encoded value): " & $serialized
 
   when not (expectedResult is NoExpectedResult):
     check serialized == expectedResult
@@ -181,9 +180,7 @@ template roundtripChecks*(Format: type, value: auto, expectedResult: auto) =
     fail()
 
   except:
-    {.cast(gcsafe).}:
-      when compiles($value):
-        checkpoint "unexpected failure in roundtrip test for " & $value
+    checkpoint "unexpected failure in roundtrip test for " & repr(value)
     raise
 
 template roundtripTest*(Format: type, value: auto, expectedResult: auto) =
