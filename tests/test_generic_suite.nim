@@ -58,10 +58,9 @@ proc readValue(r: var SerReader, value: var CaseObject) {.raises: [IOError, Seri
 
 executeReaderWriterTests Ser
 
-# TODO: needs 
-#suite "Generic Suite":
-#  runtimeTest "roundtripChecks":
-#    Ser.roundtripChecks(123)
-#
-#  runtimeTest "roundtripTest":
-#    Ser.roundtripTest(123)
+suite "Generic Suite":
+  test "roundtripChecks":
+    Ser.roundtripChecks(123)
+
+  Ser.roundtripTest(123)
+  Ser.roundtripTest(456)
