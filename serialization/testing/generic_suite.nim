@@ -151,26 +151,36 @@ template maybeDefer(x: auto): auto =
 template roundtripChecks*(Format: type, value: auto, expectedResult: auto) =
   let origValue = value
   let serialized = encode(Format, origValue)
-  {.cast(gcsafe).}:  # $(object) is not gcsafe in Nim <= 2.0
-    checkpoint "(encoded value): " & $serialized
+  checkpoint "(encoded value): " & $serialized
 
   when not (expectedResult is NoExpectedResult):
     check serialized == expectedResult
 
   try:
     let decoded = Format.decode(serialized, type(origValue))
-    checkpoint "(decoded value): " & repr(decoded)
+    # TODO: https://github.com/nim-lang/Nim/issues/25226
+    when nimvm:
+      when type(origValue) is string:
+        if decoded.len >= int16.high-2:
+          checkpoint "(decoded value): " & $decoded
+        else:
+          checkpoint "(decoded value): " & repr(decoded)
+      else:
+        checkpoint "(decoded value): " & repr(decoded)
+    else:
+      checkpoint "(decoded value): " & repr(decoded)
     let success = maybeDefer(decoded) == maybeDefer(origValue)
     check success
 
   except SerializationError as err:
-    checkpoint "(serialization error): " & err.formatMsg("(encoded value)")
+    when nimvm:
+      checkpoint "(serialization error): " & err.msg
+    else:
+      checkpoint "(serialization error): " & err.formatMsg("(encoded value)")
     fail()
 
   except:
-    {.cast(gcsafe).}:
-      when compiles($value):
-        checkpoint "unexpected failure in roundtrip test for " & $value
+    checkpoint "unexpected failure in roundtrip test for " & repr(value)
     raise
 
 template roundtripTest*(Format: type, value: auto, expectedResult: auto) =
@@ -184,6 +194,14 @@ template roundtripTest*(Format: type, value: auto) =
 
 template roundtripChecks*(Format: type, value: auto) =
   roundtripChecks(Format, value, NoExpectedResult(0))
+
+var rngvm {.compileTime.} = initRand(1234)
+
+template rand2(T: untyped): untyped =
+  when nimvm:
+    rngvm.rand(T)
+  else:
+    rand(T)
 
 proc executeRoundtripTests*(Format: type) =
   template roundtrip(val: untyped) =
@@ -199,7 +217,7 @@ proc executeRoundtripTests*(Format: type) =
         roundtrip low(T)
         roundtrip high(T)
         for i in 0..1000:
-          roundtrip rand(T)
+          roundtrip rand2(T)
 
       intTests int8
       intTests int16
