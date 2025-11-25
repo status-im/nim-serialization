@@ -54,24 +54,22 @@ macro forward*(args, prc: untyped): untyped =
       # this exact ident instance ..
       prc.params.add nnkIdentDefs.newTree(ident $arg[0], nnkCall.newTree(ident "typeof", arg[1]), newEmptyNode())
     else:
-      prc.params.add nnkIdentDefs.newTree(ident "fwd" & $i, nnkCall.newTree(ident "typeof", arg[0]), newEmptyNode())
-    i += 1
+      prc.params.add nnkIdentDefs.newTree(ident "fwd" & $i, nnkCall.newTree(ident "typeof", arg), newEmptyNode())
+      i += 1
   prc
 
-macro unpackForwarded*(callee: untyped, args: untyped): untyped =
+macro unpackForwarded*(callee: untyped, args: untyped, params: varargs[untyped]): untyped =
   # pass on `args` to callee - args should be an array of parameters to pass
-  # on to callee where one of them should be the `varargs[untyped]` passed to
-  # the forward macro. Messy.
+  # on to callee; `varargs[untyped]` should be the params passed to the forward macro.
   result = newCall(callee)
-  var i = 0
 
   for arg in usefulArgs(args):
-    if arg.kind == nnkArgList:
-      for subarg in usefulArgs(arg):
-        if subarg.kind == nnkExprEqExpr:
-          result.add nnkExprEqExpr.newTree(ident $subarg[0], ident $subarg[0])
-        else:
-          result.add ident "fwd" & $i
-          i += 1
+    result.add arg
+
+  var i = 0
+  for arg in usefulArgs(params):
+    if arg.kind == nnkExprEqExpr:
+      result.add nnkExprEqExpr.newTree(ident $arg[0], ident $arg[0])
     else:
-      result.add arg
+      result.add ident "fwd" & $i
+      i += 1
