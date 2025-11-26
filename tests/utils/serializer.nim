@@ -27,13 +27,17 @@ Ser.setWriter SerWriter, PreferredOutput = seq[byte]
 func init*(W: type SerWriter, stream: OutputStream): W =
   W(stream: stream)
 
+type SerConf* = object
+  limit*: int
+
 type SerReader* = object
   stream*: InputStream
+  conf*: SerConf
 
 Ser.setReader SerReader
 
-func init*(R: type SerReader, stream: InputStream): R =
-  R(stream: stream)
+func init*(R: type SerReader, stream: InputStream, conf = default(SerConf)): R =
+  R(stream: stream, conf: conf)
 
 type SerKind* {.pure.} = enum
   Int = 0
