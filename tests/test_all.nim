@@ -3,4 +3,5 @@ import
   test_object_serialization,
   test_reader,
   test_serializer,
-  test_generic_suite
+  test_generic_suite,
+  test_flavor

@@ -1,3 +1,4 @@
+{.used.}
 {.push raises: [], gcsafe.}
 
 import
