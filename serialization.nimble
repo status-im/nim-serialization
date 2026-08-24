@@ -1,16 +1,16 @@
 mode = ScriptMode.Verbose
 
 packageName   = "serialization"
-version       = "0.5.3"
+version       = "0.5.4"
 author        = "Status Research & Development GmbH"
 description   = "A modern and extensible serialization framework for Nim"
 license       = "Apache License 2.0"
 skipDirs      = @["tests"]
 
-requires "nim >= 2.0.0",
-         "faststreams",
-         "unittest2",
-         "stew"
+requires "nim >= 2.0.10",
+         "faststreams >= 0.5.0",
+         "stew >= 0.5.0",
+         "unittest2 >= 0.2.0"
 
 let nimc = getEnv("NIMC", "nim") # Which nim compiler to use
 let lang = getEnv("NIMLANG", "c") # Which backend (c/cpp/js)
