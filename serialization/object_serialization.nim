@@ -191,21 +191,19 @@ template GetFieldType(FT: type FieldTag): type =
 template readFieldIMPL[Reader](field: type FieldTag,
                                reader: var Reader): auto =
   mixin readValue
-  # Nim 1.6.12: `type FieldType = GetFieldType(field)` here breaks `NimYAML`.
-  {.gcsafe.}: # needed by Nim-1.6
-    # TODO: The `GetFieldType(field)` coercion below is required to deal
-    # with a nim bug caused by the distinct `ssz.List` type.
-    # It seems to break the generics cache mechanism, which
-    # leads to an incorrect return type being reported from
-    # the `readFieldIMPL` function.
+  # TODO: The `GetFieldType(field)` coercion below is required to deal
+  # with a nim bug caused by the distinct `ssz.List` type.
+  # It seems to break the generics cache mechanism, which
+  # leads to an incorrect return type being reported from
+  # the `readFieldIMPL` function.
 
-    # additional notes: putting the GetFieldType(field) coercion in
-    # `makeFieldReadersTable` will cause problems when orc enabled
-    # hence, move it here
-    when distinctBase(GetFieldType(field)) isnot GetFieldType(field):
-      GetFieldType(field) reader.readValue(GetFieldType(field))
-    else:
-      reader.readValue(GetFieldType(field))
+  # additional notes: putting the GetFieldType(field) coercion in
+  # `makeFieldReadersTable` will cause problems when orc enabled
+  # hence, move it here
+  when distinctBase(GetFieldType(field)) isnot GetFieldType(field):
+    GetFieldType(field) reader.readValue(GetFieldType(field))
+  else:
+    reader.readValue(GetFieldType(field))
 
 template writeFieldIMPL*[Writer](writer: var Writer,
                                  fieldTag: type FieldTag,

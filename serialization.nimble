@@ -7,10 +7,10 @@ description   = "A modern and extensible serialization framework for Nim"
 license       = "Apache License 2.0"
 skipDirs      = @["tests"]
 
-requires "nim >= 2.0.10",
-         "faststreams >= 0.5.0",
-         "stew >= 0.5.0",
-         "unittest2 >= 0.2.0"
+requires "nim >= 2.0.16",
+         "faststreams >= 0.6.0",
+         "stew >= 0.6.0",
+         "unittest2 >= 0.3.0"
 
 let nimc = getEnv("NIMC", "nim") # Which nim compiler to use
 let lang = getEnv("NIMLANG", "c") # Which backend (c/cpp/js)
@@ -39,11 +39,6 @@ task test, "Run all tests":
 
 task test_asan, "Run all tests with ASAN":
   if platform != "x86":
-    try:
-      exec "echo '#if __clang_major__ < 20\n#error\n#endif' | clang -E - >/dev/null"
-    except OSError:
-      return
-
     # https://clang.llvm.org/docs/AddressSanitizer.html
     putEnv("ASAN_OPTIONS", "detect_leaks=0:detect_stack_use_after_return=1")
     # https://clang.llvm.org/docs/UndefinedBehaviorSanitizer.html
