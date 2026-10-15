@@ -1,5 +1,5 @@
 # nim-serialization
-# Copyright (c) 2025 Status Research & Development GmbH
+# Copyright (c) 2025-2026 Status Research & Development GmbH
 # Licensed and distributed under either of
 #   * MIT license (license terms in the root directory or at https://opensource.org/licenses/MIT).
 #   * Apache v2 license (license terms in the root directory or at https://www.apache.org/licenses/LICENSE-2.0).
@@ -53,6 +53,12 @@ macro allFieldNames(typ: typedesc): HashSet[string] =
     code.add quote do: `res`.incl `name`
   code.add quote do: `res`
   quote do: (static(block: `code`))
+
+macro recordFieldNames(typ: typedesc): seq[string] =
+  var names: seq[string]
+  for field in recordFields(typ):
+    names.add getOriginalFieldName(field)
+  newLit names
 
 suite "Case objects without 0 value in discriminator":
   test "Typing":
@@ -114,5 +120,8 @@ suite "Case objects without 0 value in discriminator":
   test "Macro access":
     const fieldNames = CaseObject.allFieldNames
     check fieldNames == toHashSet [
+      "xafaafa", "selector", "aSelector", "aaData",
+      "abData", "aData", "bData"]
+    check CaseObject.recordFieldNames == @[
       "xafaafa", "selector", "aSelector", "aaData",
       "abData", "aData", "bData"]
