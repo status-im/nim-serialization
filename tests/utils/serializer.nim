@@ -9,13 +9,10 @@
 {.push raises: [], gcsafe.}
 
 import
-  std/strutils,
   stew/endians2,
   ../../serialization
 
-# XXX: export parseInt or bind it
-#      required for write tuple
-export serialization, parseInt
+export serialization
 
 serializationFormat Ser
 
