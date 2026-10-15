@@ -1,7 +1,7 @@
 {.push raises: [], gcsafe.}
 
 import
-  std/typetraits,
+  std/[strutils, typetraits],
   stew/shims/macros, stew/objects,
   ./errors, ./formats
 
@@ -9,7 +9,7 @@ type
   FieldTag*[RecordType: object; fieldName: static string] = distinct void
 
 export
-  DefaultFlavor
+  DefaultFlavor, macros.isCaseObject
 
 let
   # Identifiers affecting the public interface of the library:
@@ -90,18 +90,11 @@ macro enumAllSerializedFieldsImpl(T: type, body: untyped): untyped =
   ## a different order. Fields marked with the `dontSerialize` pragma
   ## are skipped.
   ##
-  var typeAst = getType(T)[1]
-  var typeImpl: NimNode
-  let isSymbol = not typeAst.isTuple
-
-  if not isSymbol:
-    typeImpl = typeAst
-  else:
-    typeImpl = getImpl(typeAst)
+  let isSymbol = not getType(T)[1].isTuple
   result = newStmtList()
 
   var i = 0
-  for field in recordFields(typeImpl):
+  for field in recordFields(T):
     if field.readPragma("dontSerialize") != nil:
       continue
 
@@ -112,7 +105,7 @@ macro enumAllSerializedFieldsImpl(T: type, body: untyped): untyped =
       fieldName = if serializedFieldName == nil: realFieldName
                   else: serializedFieldName
       discriminator = newLit(if field.caseField == nil: ""
-                           else: $field.caseField[0].skipPragma)
+                           else: $field.caseFieldName)
       branches = field.caseBranch
       fieldIndex = newLit(i)
 
@@ -155,14 +148,6 @@ template enumAllSerializedFields*(T: type, body): untyped =
     enumAllSerializedFieldsImpl(TT, body)
   else:
     enumAllSerializedFieldsImpl(T, body)
-
-func isCaseObject*(T: type): bool {.compileTime.} =
-  genSimpleExpr:
-    enumAllSerializedFields(T):
-      if fieldCaseDiscriminator != "":
-        return newLit(true)
-
-    newLit(false)
 
 type
   FieldReader*[RecordType, Reader] =
