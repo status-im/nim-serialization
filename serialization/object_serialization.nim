@@ -90,11 +90,11 @@ macro enumAllSerializedFieldsImpl(T: type, body: untyped): untyped =
   ## a different order. Fields marked with the `dontSerialize` pragma
   ## are skipped.
   ##
-  let isSymbol = not getType(T)[1].isTuple
+  let isSymbol = not T.isTuple
   result = newStmtList()
 
   var i = 0
-  for field in recordFields(T):
+  for field in T.recordFields:
     if field.readPragma("dontSerialize") != nil:
       continue
 
@@ -267,7 +267,7 @@ macro setSerializedFields*(T: typedesc, fields: varargs[untyped]): untyped =
   for f in fields: fieldsArray.add newCall(bindSym"ident", newLit($f))
 
   template payload(T: untyped, fieldsArray) {.dirty.} =
-    bind default, quote, add, getType, newStmtList,
+    bind default, quote, add, newStmtList,
          ident, newLit, newDotExpr, `$`, `[]`, getAst
 
     macro enumInstanceSerializedFields*(ins: T,
@@ -300,7 +300,6 @@ macro setSerializedFields*(T: typedesc, fields: varargs[untyped]): untyped =
       var
         fields = fieldsArray
         res = newStmtList()
-        typ = getType(typ)
 
       for field in fields:
         let fieldName = newLit($field)
