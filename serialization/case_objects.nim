@@ -1,5 +1,5 @@
 # nim-serialization
-# Copyright (c) 2025 Status Research & Development GmbH
+# Copyright (c) 2025-2026 Status Research & Development GmbH
 # Licensed and distributed under either of
 #   * MIT license (license terms in the root directory or at https://opensource.org/licenses/MIT).
 #   * Apache v2 license (license terms in the root directory or at https://www.apache.org/licenses/LICENSE-2.0).
@@ -30,7 +30,7 @@
 # that have been assigned new field names internally. If that happens, the
 # original field name is exposed via pragma `{.originalFieldName: "name".}`
 
-import std/macros
+import stew/shims/macros
 export macros
 
 func isSupportedAsDiscriminator(T: typedesc): bool =
@@ -40,23 +40,15 @@ func isSupportedAsDiscriminator(T: typedesc): bool =
     false
 
 macro withZeroField(typ: typedesc[enum]): untyped =
-  let impl = typ.getImpl()
-  doAssert impl.kind == nnkTypeDef
-  doAssert impl[2].kind == nnkEnumTy
-
   var def = nnkEnumTy.newTree(
     newEmptyNode(),
     nskEnumField.genSym "")
-  for i, field in impl[2]:
-    case field.kind
-    of nnkEmpty:
-      doAssert i == 0
-    of nnkEnumFieldDef:
-      def.add nnkEnumFieldDef.newTree(nskEnumField.genSym $field[0], field[1])
-    of nnkSym:
-      def.add nskEnumField.genSym $field
+  for field in typ.enumFields:
+    if field.value != nil:
+      def.add nnkEnumFieldDef.newTree(
+        nskEnumField.genSym $field.name, field.value)
     else:
-      error "unexpected enum field", field
+      def.add nskEnumField.genSym $field.name
   def
 
 template withNodes*(
