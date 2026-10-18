@@ -84,12 +84,9 @@ template createFlavor*(
     else:
       mimeTypeName
 
-template toObjectType(T: type): untyped =
-  typeof(T()[])
-
 template toObjectTypeIfNecessary(T: type): untyped =
   when T is ref|ptr:
-    toObjectType(T)
+    T.pointerBase
   else:
     T
 

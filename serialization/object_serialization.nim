@@ -144,7 +144,7 @@ macro enumAllSerializedFieldsImpl(T: type, body: untyped): untyped =
 
 template enumAllSerializedFields*(T: type, body): untyped =
   when T is ref|ptr:
-    type TT = type(default(T)[])
+    type TT = T.pointerBase
     enumAllSerializedFieldsImpl(TT, body)
   else:
     enumAllSerializedFieldsImpl(T, body)
