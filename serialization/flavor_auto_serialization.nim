@@ -1,5 +1,5 @@
 # nim-serialization
-# Copyright (c) 2025 Status Research & Development GmbH
+# Copyright (c) 2025-2026 Status Research & Development GmbH
 # Licensed under either of
 #  * Apache License, version 2.0, ([LICENSE-APACHE](LICENSE-APACHE))
 #  * MIT license ([LICENSE-MIT](LICENSE-MIT))
@@ -52,7 +52,7 @@ template generateAutoSerializationAddon*(FLAVOR: typed) {.dirty.} =
 
   func typeClassOrMemberAutoSerialize*(F: type FLAVOR, TC: distinct type, TM: distinct type): bool {.compileTime.} =
     ## Check whether a type or its parent type class have automatic serialization flag.
-    when not((TM is TC) or (TM is distinct and distinctBase(TM) is TC)):
+    when not(TM is TC or distinctBase(TM) is TC):
       {.error: "'" & typetraits.name(TM) & "' is not member of type class '" & typetraits.name(TC) & "'".}
 
     let tmAuto = F.getAutoSerialize(TM)

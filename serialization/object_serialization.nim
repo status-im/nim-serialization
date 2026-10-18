@@ -182,7 +182,7 @@ template readFieldIMPL[Reader](field: type FieldTag,
   # additional notes: putting the GetFieldType(field) coercion in
   # `makeFieldReadersTable` will cause problems when orc enabled
   # hence, move it here
-  when distinctBase(GetFieldType(field)) isnot GetFieldType(field):
+  when GetFieldType(field) is distinct:
     GetFieldType(field) reader.readValue(GetFieldType(field))
   else:
     reader.readValue(GetFieldType(field))
