@@ -67,7 +67,7 @@ template withNodes*(
 func splitId(node: NimNode): tuple[id: NimNode, isExported: bool] =
   case node.kind
   of nnkPostfix:
-    doAssert $node[0] == "*"
+    doAssert eqIdent(node[0], "*")
     (node[1], true)
   of nnkIdent:
     (node, false)
