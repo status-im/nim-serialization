@@ -83,22 +83,11 @@ func makeId(id: NimNode, isExported: bool): NimNode =
 template originalFieldName*(_: string) {.pragma.}
 
 func getOriginalFieldName*(ident: NimNode): string =
-  let name =
-    case ident.kind
-    of nnkPostfix:
-      ident[1]
-    else:
-      ident
-  case name.kind
-  of nnkPragmaExpr:
-    let originalNameSym = bindSym "originalFieldName"
-    for pragma in name[1]:
-      if pragma.kind == nnkExprColonExpr and pragma[0] == originalNameSym:
-        doAssert pragma[1].kind == nnkStrLit
-        return $pragma[1]
-    $name[0]
-  else:
-    $name
+  if ident.kind == nnkPragmaExpr:
+    let originalName = ident[1].readPragmaValue "originalFieldName"
+    if originalName != nil:
+      return $originalName
+  ident.identName
 
 func getOriginalFieldName*(field: FieldDescription): string =
   let originalName = field.readPragmaValue "originalFieldName"
