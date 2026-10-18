@@ -172,7 +172,7 @@ macro allowDiscriminatorsWithoutZero*(typ: untyped{nkTypeDef}): untyped =
       if i == 0:
         doAssert node.kind == nnkIdentDefs
       else:
-        patchedRecCase.add node
+        patchedRecCase.add node.copyNimTree
     parent[childIndex] = nnkRecWhen.newTree(
       nnkElifBranch.newTree(
         quote do: not isSupportedAsDiscriminator(`OrigTyp`),
