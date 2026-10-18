@@ -39,6 +39,19 @@ type
       bData*: float
     of C: discard
 
+  HoleyKind = enum
+    holeyZero = 0
+    holeyFive = 5
+
+  DistinctKind = distinct HoleyKind
+
+  DistinctCaseObject {.allowDiscriminatorsWithoutZero.} = object
+    case kind: DistinctKind
+    of DistinctKind(holeyZero):
+      zeroData: int
+    else:
+      discard
+
 macro allFieldNames(typ: typedesc): HashSet[string] =
   let
     impl = typ.getImpl()
@@ -87,6 +100,11 @@ suite "Case objects without 0 value in discriminator":
       x.aData == "hihihi"
       x.aSelector == foo()
       x.abData == 42.0
+
+    let y = DistinctCaseObject.init(
+      kind = DistinctKind(holeyZero),
+      zeroData = 13)
+    check y.zeroData == 13
 
   test "Iterators":
     let

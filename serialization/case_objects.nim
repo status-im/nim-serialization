@@ -30,12 +30,12 @@
 # that have been assigned new field names internally. If that happens, the
 # original field name is exposed via pragma `{.originalFieldName: "name".}`
 
-import stew/shims/macros
+import std/typetraits, stew/shims/macros
 export macros
 
 func isSupportedAsDiscriminator(T: typedesc): bool =
-  when compiles(T.low.int):
-    T.low.int == 0
+  when distinctBase(T) is Ordinal|enum:
+    distinctBase(T).low.int == 0
   else:
     false
 
@@ -276,7 +276,7 @@ macro allowDiscriminatorsWithoutZero*(typ: untyped{nkTypeDef}): untyped =
             `doWithFieldPairs`(x, _, `valParam`):
               body
 
-          func `dollarId`(x: `T`): string {.used.} =
+          func `dollarId`[t: `T`](x: t): string {.used.} =
             var
               res = "("
               didAdd = false
