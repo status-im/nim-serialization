@@ -82,6 +82,8 @@ func makeId(id: NimNode, isExported: bool): NimNode =
 
 template originalFieldName*(_: string) {.pragma.}
 
+template originalType(_: typed) {.pragma.}
+
 func getOriginalFieldName*(ident: NimNode): string =
   if ident.kind == nnkPragmaExpr:
     let originalName = ident[1].readPragmaValue "originalFieldName"
@@ -92,6 +94,10 @@ func getOriginalFieldName*(ident: NimNode): string =
 func getOriginalFieldName*(field: FieldDescription): string =
   let originalName = field.readPragmaValue "originalFieldName"
   if originalName != nil: $originalName else: $field.name
+
+func toOriginal[T: enum](x: T): auto =
+  doAssert x.int != 0, "default init not allowed for " & $T
+  cast[T.getCustomPragmaFixed(originalType)](x)
 
 macro allowDiscriminatorsWithoutZero*(typ: untyped{nkTypeDef}): untyped =
   let def = typ[2]
@@ -104,20 +110,13 @@ macro allowDiscriminatorsWithoutZero*(typ: untyped{nkTypeDef}): untyped =
     initId = makeId(ident "init", typIsExported)
     fieldsId = makeId(ident "fields", typIsExported)
     fieldPairsId = makeId(ident "fieldPairs", typIsExported)
-    doWithFields = ident "doWithFields"
-    doWithFieldPairs = ident "doWithFieldPairs"
     dollarId = makeId(ident "$", typIsExported)
     arg = nskForVar.genSym "arg"
     code = nskVar.genSym "code"
-    keyParam = ident "keyParam"
-    valParam = ident "valParam"
-    keyId = ident "key"
-    valId = ident "val"
   var
     converterCode = newStmtList()
     accessorCode = newStmtList()
     initCode = nnkCaseStmt.newTree((quote do: $`arg`[0]))
-    fieldPairsCode = nnkWhenStmt.newTree()
   def.withNodes(nnkRecCase):
     let
       recCase = parent[childIndex]
@@ -133,16 +132,11 @@ macro allowDiscriminatorsWithoutZero*(typ: untyped{nkTypeDef}): untyped =
     let
       PatchedTyp = nskType.genSym $OrigTyp
       PatchedId = makeId(PatchedTyp, fieldIsExported)
-      toOrigId = makeId(nskConverter.genSym "toOrig" & $OrigTyp, typIsExported)
       toPatchedName = ident repr nskConverter.genSym $OrigTyp
       toPatchedId = makeId(toPatchedName, fieldIsExported)
     converterCode.add quote do:
       when not isSupportedAsDiscriminator(`OrigTyp`):
-        type `PatchedId` = `OrigTyp`.withZeroField()
-
-        converter `toOrigId`(x: `PatchedTyp`): `OrigTyp` {.used.} =
-          doAssert x.int != 0, "default init not allowed for " & $`OrigTyp`
-          cast[`OrigTyp`](x)
+        type `PatchedId` {.originalType: `OrigTyp`.} = `OrigTyp`.withZeroField()
 
         converter `toPatchedId`(x: `OrigTyp`): `PatchedTyp` {.used.} =
           cast[`PatchedTyp`](x)
@@ -172,7 +166,7 @@ macro allowDiscriminatorsWithoutZero*(typ: untyped{nkTypeDef}): untyped =
     accessorCode.add quote do:
       when not isSupportedAsDiscriminator(`OrigTyp`):
         template `origId`(x: `T`): `OrigTyp` {.used.} =
-          x.`patchedName`
+          x.`patchedName`.toOriginal
 
         template `origId`(x: typedesc[`T`]): typedesc {.used.} =
           `OrigTyp`
@@ -192,19 +186,8 @@ macro allowDiscriminatorsWithoutZero*(typ: untyped{nkTypeDef}): untyped =
             nnkElse.newTree(`arg`[1])))
       else:
         `code`.add nnkExprColonExpr.newTree(`arg`[0], `arg`[1]))
-    fieldPairsCode.add nnkElifBranch.newTree(
-      quote do: `keyId` == `patchedNameStr`,
-      quote do:
-        when not isSupportedAsDiscriminator(`OrigTyp`):
-          const `keyParam` {.inject, used.} = `origNameStr`
-          template `valParam`: `OrigTyp` {.inject, used.} = `valId`
-        else:
-          {.error: `patchedNameStr` & " should not require patching".})
   initCode.add nnkElse.newTree quote do:
     `code`.add nnkExprColonExpr.newTree(`arg`[0], `arg`[1])
-  fieldPairsCode.add nnkElse.newTree quote do:
-    const `keyParam` {.inject, used.} = `keyId`
-    template `valParam`: untyped {.inject, used.} = `valId`
 
   # macros can return an unused type definition where the right-hand node is
   # of kind nnkStmtListType. Declarations in this node will be attached to the
@@ -248,28 +231,15 @@ macro allowDiscriminatorsWithoutZero*(typ: untyped{nkTypeDef}): untyped =
             {.error: $t & " does not support `fieldPairs`; " &
               "use `withFieldPairs` instead".}
 
-          template `doWithFieldPairs`(
-              x: `T`, `keyParam`: untyped, `valParam`: untyped,
-              body: untyped) {.used.} =
-            for `keyId`, `valId` in system.fieldPairs(x):
-              `fieldPairsCode`
-              body
-
           iterator `fieldsId`[t: `T`](x: t): RootObj {.noSideEffect, used.} =
             {.error: $t & " does not support `fields`; " &
               "use `withFields` instead".}
-
-          template `doWithFields`(
-              x: `T`, `valParam`: untyped,
-              body: untyped) {.used.} =
-            `doWithFieldPairs`(x, _, `valParam`):
-              body
 
           func `dollarId`[t: `T`](x: t): string {.used.} =
             var
               res = "("
               didAdd = false
-            x.`doWithFieldPairs`(key, val):
+            x.withFieldPairs(key, val):
               if didAdd:
                 res &= ", "
               res &= key & ": " & $val
@@ -279,21 +249,22 @@ macro allowDiscriminatorsWithoutZero*(typ: untyped{nkTypeDef}): untyped =
         ),
         ident "void")))
 
+func isPatched(T: typedesc): bool =
+  when T is enum: T.hasCustomPragmaFixed(originalType) else: false
+
 template withFieldPairs*(
     x: auto, keyParam: untyped, valParam: untyped, body: untyped) =
-  when compiles(doWithFieldPairs(x, keyParam, valParam, body)):
-    doWithFieldPairs(x, keyParam, valParam, body)
-  else:
-    for key, val in x.fieldPairs:
+  for key, val in system.fieldPairs(x):
+    when typeof(val).isPatched:
+      const keyParam {.inject, used.} =
+        typeof(x).getCustomPragmaFixed(key, originalFieldName)
+      template valParam: untyped {.inject, used.} = val.toOriginal
+    else:
       const keyParam {.inject, used.} = key
       template valParam: untyped {.inject, used.} = val
-      body
+    body
 
 template withFields*(
     x: auto, valParam: untyped, body: untyped) =
-  when compiles(doWithFields(x, valParam, body)):
-    doWithFields(x, valParam, body)
-  else:
-    for val in x.fields:
-      template valParam: untyped {.inject, used.} = val
-      body
+  x.withFieldPairs(_, valParam):
+    body

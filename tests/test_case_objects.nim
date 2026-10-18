@@ -10,7 +10,8 @@
 
 import
   unittest2,
-  ../serialization/case_objects
+  ../serialization/case_objects,
+  ./test_case_objects_helpers
 
 type
   Selector* {.requiresInit.} = enum
@@ -132,6 +133,50 @@ suite "Case objects without 0 value in discriminator":
           $v == expected[i].val
         inc i
       check i == expected.len
+
+    block:
+      var keys: seq[string]
+      FieldNamesObject(pragma: 0, exportedPragma: 0).withFieldPairs(k, v):
+        keys.add k
+      check keys == @[
+        "plain", "exported", "pragma", "exportedPragma",
+        "renamed", "exportedRenamed"]
+
+  test "Iterators across modules":
+    let
+      x = HelperCaseObject.init(selector = helperY, yData = "hihihi")
+      expected = [
+        (key: "selector", typ: "HelperSelector", val: "helperY"),
+        (key: "yData", typ: "string", val: "hihihi")]
+
+    template checkIterators(x: untyped) =
+      block:
+        var i = 0
+        x.withFields(v):
+          check:
+            $typeof(v) == expected[i].typ
+            $v == expected[i].val
+          when v is enum:
+            check v == helperY
+          inc i
+        check i == expected.len
+
+      block:
+        var i = 0
+        x.withFieldPairs(k, v):
+          check:
+            k == expected[i].key
+            $typeof(v) == expected[i].typ
+            $v == expected[i].val
+          when v is enum:
+            check v == helperY
+          inc i
+        check i == expected.len
+
+    checkIterators x
+    checkIterators hiddenCaseObject(yData = "hihihi")
+
+    check $x == "(selector: helperY, yData: hihihi)"
 
   test "Macro access":
     check FieldNamesObject.identFieldNames == @[
