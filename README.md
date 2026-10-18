@@ -109,11 +109,6 @@ setSerializedFields Foo:
 As you can see, `setSerializedFields` accepts a block where each serialized
 field is listed on a separate line.
 
-#### `customSerialization(RecordType: type, spec)`
-
-
-
-
 #### `totalSerializedFields(RecordType: type)`
 
 Returns the number of serialized fields in the specified format.
