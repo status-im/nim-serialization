@@ -167,9 +167,6 @@ proc totalSerializedFieldsImpl(T: type): int =
 template totalSerializedFields*(T: type): int =
   (static(totalSerializedFieldsImpl(T)))
 
-macro customSerialization*(field: untyped, definition): untyped =
-  discard
-
 template GetFieldType(FT: type FieldTag): type =
   typeof field(declval(FT.RecordType), FT.fieldName)
 
