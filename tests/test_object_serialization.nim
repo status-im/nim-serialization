@@ -21,3 +21,10 @@ suite "object serialization":
 
     check fieldsList == @["t1: true", "t2: true", "t3: true"]
 
+  test "case object branches":
+    var fieldsList = newSeq[string]()
+    enumAllSerializedFields(CaseObject):
+      when fieldCaseDiscriminator != "":
+        fieldsList.add(fieldName & ": " & $fieldCaseBranches)
+
+    check fieldsList == @["a: {A}", "other: {A}", "b: {B}"]

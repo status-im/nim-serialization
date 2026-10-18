@@ -82,7 +82,7 @@ macro enumAllSerializedFieldsImpl(T: type, body: untyped): untyped =
   ##    this will be an empty string.
   ##
   ##  * `fieldCaseBranches`
-  ##    A set literal node denoting the possible values of the
+  ##    A set expression denoting the possible values of the
   ##    case object discriminator which make this field accessible.
   ##
   ## The order of visited fields matches the order of the fields in
@@ -106,7 +106,7 @@ macro enumAllSerializedFieldsImpl(T: type, body: untyped): untyped =
                   else: serializedFieldName
       discriminator = newLit(if field.caseField == nil: ""
                            else: $field.caseFieldName)
-      branches = field.caseBranch
+      branches = field.caseBranchValues
       fieldIndex = newLit(i)
 
     let fieldNameDefs =
