@@ -95,13 +95,13 @@ macro enumAllSerializedFieldsImpl(T: type, body: untyped): untyped =
 
   var i = 0
   for field in T.recordFields:
-    if field.readPragma("dontSerialize") != nil:
+    if field.hasPragma("dontSerialize"):
       continue
 
     let
       fieldIdent = field.name
       realFieldName = newLit($fieldIdent.skipPragma)
-      serializedFieldName = field.readPragma("serializedFieldName")
+      serializedFieldName = field.readPragmaValue("serializedFieldName")
       fieldName = if serializedFieldName == nil: realFieldName
                   else: serializedFieldName
       discriminator = newLit(if field.caseField == nil: ""
