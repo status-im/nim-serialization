@@ -100,6 +100,10 @@ func getOriginalFieldName*(ident: NimNode): string =
   else:
     $name
 
+func getOriginalFieldName*(field: FieldDescription): string =
+  let originalName = field.readPragmaValue "originalFieldName"
+  if originalName != nil: $originalName else: $field.name
+
 macro allowDiscriminatorsWithoutZero*(typ: untyped{nkTypeDef}): untyped =
   let def = typ[2]
   if def.kind != nnkObjectTy:
