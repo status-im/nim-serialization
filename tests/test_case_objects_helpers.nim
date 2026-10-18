@@ -7,7 +7,7 @@
 
 {.push raises: [].}
 
-import ../serialization/case_objects
+from ../serialization/case_objects import allowDiscriminatorsWithoutZero
 
 type
   HelperSelector* = enum
@@ -30,3 +30,6 @@ type
 
 func hiddenCaseObject*(yData: string): HiddenCaseObject =
   HiddenCaseObject.init(selector = helperY, yData = yData)
+
+func formatHelperCaseObject*(x: HelperCaseObject): string =
+  $x

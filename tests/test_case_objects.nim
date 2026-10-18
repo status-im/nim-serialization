@@ -176,7 +176,9 @@ suite "Case objects without 0 value in discriminator":
     checkIterators x
     checkIterators hiddenCaseObject(yData = "hihihi")
 
-    check $x == "(selector: helperY, yData: hihihi)"
+    check:
+      $x == "(selector: helperY, yData: hihihi)"
+      formatHelperCaseObject(x) == "(selector: helperY, yData: hihihi)"
 
   test "Macro access":
     check FieldNamesObject.identFieldNames == @[

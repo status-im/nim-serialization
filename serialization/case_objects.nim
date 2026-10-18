@@ -99,6 +99,26 @@ func toOriginal[T: enum](x: T): auto =
   doAssert x.int != 0, "default init not allowed for " & $T
   cast[T.getCustomPragmaFixed(originalType)](x)
 
+func isPatched(T: typedesc): bool =
+  when T is enum: T.hasCustomPragmaFixed(originalType) else: false
+
+template withFieldPairs*(
+    x: auto, keyParam: untyped, valParam: untyped, body: untyped) =
+  for key, val in system.fieldPairs(x):
+    when typeof(val).isPatched:
+      const keyParam {.inject, used.} =
+        typeof(x).getCustomPragmaFixed(key, originalFieldName)
+      template valParam: untyped {.inject, used.} = val.toOriginal
+    else:
+      const keyParam {.inject, used.} = key
+      template valParam: untyped {.inject, used.} = val
+    body
+
+template withFields*(
+    x: auto, valParam: untyped, body: untyped) =
+  x.withFieldPairs(_, valParam):
+    body
+
 macro allowDiscriminatorsWithoutZero*(typ: untyped{nkTypeDef}): untyped =
   let def = typ[2]
   if def.kind != nnkObjectTy:
@@ -219,7 +239,7 @@ macro allowDiscriminatorsWithoutZero*(typ: untyped{nkTypeDef}): untyped =
               t: typedesc[`T`],
               args: varargs[untyped]{nkArgList}): `T` {.used.} =
             var `code` = nnkObjConstr.newTree(t)
-            for `arg` in args:
+            for `arg` in items(args):
               if `arg`.kind != nnkExprEqExpr:
                 error "arguments must be passed by key", `arg`
               `initCode`
@@ -239,7 +259,7 @@ macro allowDiscriminatorsWithoutZero*(typ: untyped{nkTypeDef}): untyped =
             var
               res = "("
               didAdd = false
-            x.withFieldPairs(key, val):
+            withFieldPairs(x, key, val):  # https://github.com/nim-lang/Nim/issues/26500
               if didAdd:
                 res &= ", "
               res &= key & ": " & $val
@@ -248,23 +268,3 @@ macro allowDiscriminatorsWithoutZero*(typ: untyped{nkTypeDef}): untyped =
             res
         ),
         ident "void")))
-
-func isPatched(T: typedesc): bool =
-  when T is enum: T.hasCustomPragmaFixed(originalType) else: false
-
-template withFieldPairs*(
-    x: auto, keyParam: untyped, valParam: untyped, body: untyped) =
-  for key, val in system.fieldPairs(x):
-    when typeof(val).isPatched:
-      const keyParam {.inject, used.} =
-        typeof(x).getCustomPragmaFixed(key, originalFieldName)
-      template valParam: untyped {.inject, used.} = val.toOriginal
-    else:
-      const keyParam {.inject, used.} = key
-      template valParam: untyped {.inject, used.} = val
-    body
-
-template withFields*(
-    x: auto, valParam: untyped, body: untyped) =
-  x.withFieldPairs(_, valParam):
-    body
