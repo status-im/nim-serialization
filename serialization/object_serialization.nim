@@ -100,7 +100,7 @@ macro enumAllSerializedFieldsImpl(T: type, body: untyped): untyped =
 
     let
       fieldIdent = field.name
-      realFieldName = newLit($fieldIdent.skipPragma)
+      realFieldName = newLit($fieldIdent)
       serializedFieldName = field.readPragmaValue("serializedFieldName")
       fieldName = if serializedFieldName == nil: realFieldName
                   else: serializedFieldName
