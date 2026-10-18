@@ -9,7 +9,6 @@
 {.used.}
 
 import
-  std/sets,
   unittest2,
   ../serialization/case_objects
 
@@ -52,20 +51,19 @@ type
     else:
       discard
 
-macro allFieldNames(typ: typedesc): HashSet[string] =
-  let
-    impl = typ.getImpl()
-    res = nskVar.genSym "res"
-  var code = newStmtList()
-  code.add quote do:
-    var `res`: HashSet[string]
-  impl.withNodes(nnkIdentDefs):
-    let
-      ident = parent[childIndex][0]
-      name = newLit getOriginalFieldName(ident)
-    code.add quote do: `res`.incl `name`
-  code.add quote do: `res`
-  quote do: (static(block: `code`))
+  FieldNamesObject* = object
+    plain: int
+    exported*: int
+    pragma {.requiresInit.}: int
+    exportedPragma* {.requiresInit.}: int
+    renamed {.originalFieldName: "original".}: int
+    exportedRenamed* {.originalFieldName: "exportedOriginal".}: int
+
+macro identFieldNames(typ: typedesc): seq[string] =
+  var names: seq[string]
+  for field in typ.getImpl[2][2]:
+    names.add getOriginalFieldName(field[0])
+  newLit names
 
 macro recordFieldNames(typ: typedesc): seq[string] =
   var names: seq[string]
@@ -136,10 +134,9 @@ suite "Case objects without 0 value in discriminator":
       check i == expected.len
 
   test "Macro access":
-    const fieldNames = CaseObject.allFieldNames
-    check fieldNames == toHashSet [
-      "xafaafa", "selector", "aSelector", "aaData",
-      "abData", "aData", "bData"]
+    check FieldNamesObject.identFieldNames == @[
+      "plain", "exported", "pragma", "exportedPragma",
+      "original", "exportedOriginal"]
     check CaseObject.recordFieldNames == @[
       "xafaafa", "selector", "aSelector", "aaData",
       "abData", "aData", "bData"]
